@@ -7,8 +7,7 @@ WORKDIR /app
 # Copy the go.mod and go.sum files
 COPY go.mod go.sum ./
 
-ENV GOPROXY=https://proxy.golang.org,direct
-ENV GO111MODULE=on
+
 
 RUN apt-get update && apt-get install -y ca-certificates
 
@@ -17,6 +16,14 @@ RUN go mod download
 
 # Copy the rest of the application code
 COPY . .
+
+RUN go install github.com/swaggo/swag/cmd/swag@latest
+
+RUN echo "updating docs...."
+
+RUN swag init
+
+RUN echo "building API....."
 
 # Build the application
 RUN go build -o main .
