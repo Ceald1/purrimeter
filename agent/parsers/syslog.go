@@ -110,11 +110,11 @@ func decodeLog(log string, logger *rus.Logger)(output map[string]interface{}){
 	})
 	logger.SetLevel(rus.InfoLevel)
 	entry := rus.Fields{
-		"timestamp": log_message.Timestamp,
-		"program":   log_message.Program,
-		"message":   log_message.Message,
-		"pid":       log_message.PID,
-		"host":      log_message.Host,
+		"timestamp": 	log_message.Timestamp,
+		"program":   	log_message.Program,
+		"message":   	log_message.Message,
+		"pid":       	log_message.PID,
+		"host":      	log_message.Host,
 		"logOrigin":    "syslog",
 	}
 	output = map[string]interface{}(entry)

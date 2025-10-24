@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+  api:
+    container_name: api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${API_PORT}:8080"
+    networks:
+      - go-network
+    environment:
+      - REDIS_PASS=${REDIS_PASS}
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASS}
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+
+networks:
+  go-network:
+    driver: bridge
+
+volumes:
+  redis_data:
