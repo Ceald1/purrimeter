@@ -4,7 +4,6 @@ package parsers
 
 import (
 	"fmt"
-	"os"
 
 	"encoding/json"
 	"regexp"
@@ -70,7 +69,6 @@ func RsyslogTail(logPath string, url string) (err error) {
 					fmt.Println(err.Error())
 				}
 			}else{
-				fmt.Println(json_log["message"])
 				re_html := regexp.MustCompile(`&#x[A-Fa-f0-9]{0,2};`)
 				syslog := json_log["message"].(string)
 				syslog = strings.ToValidUTF8(syslog, "")
@@ -84,9 +82,6 @@ func RsyslogTail(logPath string, url string) (err error) {
 				new_json_log["host"]	  = json_log["host"]
 				new_json_log["logOrigin"] = "sysmon"
 				jsonData, _= json.Marshal(new_json_log)
-				fmt.Println(new_json_log)
-				os.WriteFile("test.json", jsonData, 0644)
-				os.Exit(0)
 				err = senders.SendJson(url, jsonData)
 				if err != nil {
 					fmt.Println(err.Error())

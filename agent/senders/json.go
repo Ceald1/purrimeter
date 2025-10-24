@@ -2,11 +2,10 @@ package senders
 
 import (
 	"bytes"
-	"net/http"
 	"fmt"
-	"io/ioutil"
+	"io"
+	"net/http"
 )
-
 
 func SendJson(url string, jsonData []byte) (err error) {
 	response, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
@@ -15,7 +14,7 @@ func SendJson(url string, jsonData []byte) (err error) {
 	}
 	defer response.Body.Close()
 	if response.StatusCode != 200 {
-		body, _ := ioutil.ReadAll(response.Body)
+		body, _ := io.ReadAll(response.Body)
 		err = fmt.Errorf("code: %d message: %s", response.StatusCode, string(body))
 	}
 	return err
