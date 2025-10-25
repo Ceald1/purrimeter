@@ -2,6 +2,7 @@ package management
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -20,6 +21,10 @@ type ErrorResponse struct {
 }
 type Result struct {
 	Result string `json:"result" example:"ok"`
+}
+
+type NewJWTRequest struct {
+	JwtKey string `json:"jwtKey" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IiJ9.TrozRjDs4mRJ3yh9QMexo3yVJVTmOr8MTAkbVsFSudA"`
 }
 
 
@@ -54,6 +59,7 @@ func RegisterAgent( g *gin.Context) {
 		g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
+	registerRequest.Name = strings.ToLower(registerRequest.Name)
 	
 	secret, err := db.Get_Valkey_Secrets(valkey)
 	if err != nil {
@@ -70,6 +76,13 @@ func RegisterAgent( g *gin.Context) {
 		g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
+	
+	err = db.ValkeyAgentToDB(valkey, registerRequest.Name)
+	if err != nil {
+		g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+
 	jw, err := db.CreateToken(registerRequest.Name)
 	if err != nil {
 		g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})

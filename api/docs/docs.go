@@ -15,7 +15,41 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/v1/agent/management/register": {
+        "/agent/management/newkey": {
+            "post": {
+                "description": "get a new key for the agent",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agent management"
+                ],
+                "summary": "get a new key for the agent",
+                "parameters": [
+                    {
+                        "description": "Get a new key for the agent",
+                        "name": "authRequest",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/management.NewJWTRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/agent/management/register": {
             "post": {
                 "description": "register agent",
                 "consumes": [
@@ -74,6 +108,15 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "management.NewJWTRequest": {
+            "type": "object",
+            "properties": {
+                "jwtKey": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IiJ9.TrozRjDs4mRJ3yh9QMexo3yVJVTmOr8MTAkbVsFSudA"
+                }
+            }
+        },
         "management.Registration": {
             "type": "object",
             "properties": {

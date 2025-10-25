@@ -47,6 +47,10 @@ func main()  {
    if err != nil {
       panic(err)
    }
+   err = db.Valkey_MoveAgentsToDB(val)
+   if err != nil {
+      panic(err)
+   }
 
 
 

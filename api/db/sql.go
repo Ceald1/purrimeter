@@ -106,3 +106,101 @@ func getSecret(db *sql.DB) (secretKey string, err error) {
 
 	return
 }
+
+func getAgents(db *sql.DB) (results []map[string]interface{}, err error) {
+	query := `SELECT id, name, created_at FROM agents;`
+	
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	
+	// Get column names
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}	
+	// Iterate through rows
+	for rows.Next() {
+		// Create a slice of interface{} to hold each column value
+		values := make([]interface{}, len(columns))
+		valuePtrs := make([]interface{}, len(columns))
+		
+		for i := range columns {
+			valuePtrs[i] = &values[i]
+		}
+		
+		// Scan the row into the value pointers
+		if err := rows.Scan(valuePtrs...); err != nil {
+			return nil, err
+		}
+		
+		// Create a map for this row
+		row := make(map[string]interface{})
+		for i, col := range columns {
+			val := values[i]
+			
+			// Convert []byte to string (common for TEXT fields)
+			if b, ok := val.([]byte); ok {
+				row[col] = string(b)
+			} else {
+				row[col] = val
+			}
+		}
+		
+		results = append(results, row)
+	}
+	
+	// Check for errors from iterating
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	
+	return results, nil
+}
+
+func getAgent(db *sql.DB, agentName string) (result map[string]interface{}, err error) {
+	query := `SELECT id, name, created_at FROM agents WHERE name = ?`
+	rows, err := db.Query(query, agentName)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	// Get column names
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	if !rows.Next() {
+		return nil, sql.ErrNoRows
+	}
+
+	// values and value pointers
+	values := make([]interface{}, len(columns))
+	valuePtrs := make([]interface{}, len(columns))
+	
+	for i := range columns {
+		valuePtrs[i] = &values[i]
+	}
+	
+	// Scan the row into the value pointers
+	if err := rows.Scan(valuePtrs...); err != nil {
+		return nil, err
+	}
+	
+	// Create a map for this row
+	row := make(map[string]interface{})
+	for i, col := range columns {
+		val := values[i]
+		
+		// Convert []byte to string (common for TEXT fields)
+		if b, ok := val.([]byte); ok {
+			row[col] = string(b)
+		} else {
+			row[col] = val
+		}
+	}
+	result = row
+	return
+}
