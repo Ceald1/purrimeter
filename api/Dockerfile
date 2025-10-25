@@ -29,7 +29,11 @@ RUN echo "building API....."
 RUN go build -o main .
 
 # Expose the port the app runs on
-EXPOSE 8000
+EXPOSE 8080
+ENV REDIS_PASS $REDIS_PASS
+ENV SECRET $SECRET
+ENV API_ADMIN $API_ADMIN
+
 
 # Command to run the application
 CMD ["./main"]

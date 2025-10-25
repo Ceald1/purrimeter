@@ -3,6 +3,7 @@ module github.com/Ceald1/purrimeter/agent
 go 1.25.1
 
 require (
+	github.com/matishsiao/goInfo v0.0.0-20241216093258-66a9250504d6
 	github.com/nxadm/tail v1.4.11
 	github.com/sbabiv/xml2map v1.2.1
 	github.com/sirupsen/logrus v1.9.3

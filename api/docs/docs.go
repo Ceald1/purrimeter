@@ -15,6 +15,40 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/agent/management/register": {
+            "post": {
+                "description": "register agent",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "agent management"
+                ],
+                "summary": "register agent to the server",
+                "parameters": [
+                    {
+                        "description": "Agent registration information",
+                        "name": "registration",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/management.Registration"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
         "/example/helloworld": {
             "get": {
                 "description": "do ping",
@@ -35,6 +69,21 @@ const docTemplate = `{
                             "type": "string"
                         }
                     }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "management.Registration": {
+            "type": "object",
+            "properties": {
+                "key": {
+                    "type": "string",
+                    "example": "f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "John Doe"
                 }
             }
         }

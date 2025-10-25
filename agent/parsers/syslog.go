@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"github.com/matishsiao/goInfo"
 
 	"github.com/Ceald1/purrimeter/agent/senders"
 	"github.com/nxadm/tail"
@@ -47,6 +48,7 @@ func parseSyslogLine(line string) (*SyslogMessage, error) {
 
 func RsyslogTail(logPath string, url string) (err error) {
 	// tails log file, decodes to json, and sends line to server
+	
 	t, err := tail.TailFile(logPath, tail.Config{Follow: true, ReOpen: true})
 	if err != nil {
 		return
@@ -81,6 +83,7 @@ func RsyslogTail(logPath string, url string) (err error) {
 				new_json_log["pid"]       = json_log["pid"]
 				new_json_log["host"]	  = json_log["host"]
 				new_json_log["logOrigin"] = "sysmon"
+				new_json_log["os"]  = json_log["os"]
 				jsonData, _= json.Marshal(new_json_log)
 				err = senders.SendJson(url, jsonData)
 				if err != nil {
@@ -100,6 +103,7 @@ func RsyslogTail(logPath string, url string) (err error) {
 
 func decodeLog(log string, logger *rus.Logger)(output map[string]interface{}){
 	// decode log to prep it to be sent as json
+	info, _ := goInfo.GetInfo()
 	log_message, err := parseSyslogLine(log)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -114,8 +118,9 @@ func decodeLog(log string, logger *rus.Logger)(output map[string]interface{}){
 		"program":   	log_message.Program,
 		"message":   	log_message.Message,
 		"pid":       	log_message.PID,
-		"host":      	log_message.Host,
+		"host":      	info.Hostname,
 		"logOrigin":    "syslog",
+		"os":     info.GoOS,
 	}
 	output = map[string]interface{}(entry)
 	return
