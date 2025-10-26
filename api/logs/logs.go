@@ -37,8 +37,8 @@ type Result struct {
 // Send logs
 // @Summary send agent logs
 // @Schemes
-// @Description register agent
-// @Tags agent management
+// @Description agent logs
+// @Tags logs
 // @Param sysLog body		SysLog true	"Send agent logs"
 // @Accept json
 // @Produce json

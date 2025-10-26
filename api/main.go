@@ -75,7 +75,11 @@ func main()  {
             management_agent.POST("/register", func(ctx *gin.Context) {
                management.RegisterAgent(ctx, sql, val)
             })
+            management_agent.POST("/remove", func(ctx *gin.Context) {
+               management.UnRegister(ctx, sql, val)
+            })
          }
+            
          logs_agent := agent.Group("/logs")
          {
             logs_agent.POST("/agentLogs", func(ctx *gin.Context) {

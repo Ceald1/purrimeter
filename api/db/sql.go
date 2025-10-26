@@ -204,3 +204,10 @@ func getAgent(db *sql.DB, agentName string) (result map[string]interface{}, err 
 	result = row
 	return
 }
+
+
+func SQL_Delete(db *sql.DB, agentName string) (err error) {
+	query := `DELETE FROM agents WHERE name = ?`
+	_, err = db.Exec(query, agentName)
+	return err
+}

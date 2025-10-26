@@ -25,7 +25,8 @@ type Result struct {
 	Result string `json:"result" example:"ok"`
 }
 
-type NewJWTRequest struct {
+type UnRegisterAgent struct {
+	Key  string  `json:"key" example:"f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2"`
 	JwtKey string `json:"jwtKey" example:"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6IiJ9.TrozRjDs4mRJ3yh9QMexo3yVJVTmOr8MTAkbVsFSudA"`
 }
 
@@ -94,5 +95,51 @@ func RegisterAgent( g *gin.Context, sqlite *sql.DB, valkey valkey.Client) {
 
 }
 
+// @BasePath /api/v1
 
+// Remove agent from DB
+// @Summary unregister agent from the server
+// @Schemes
+// @Description unregister agent
+// @Tags agent management
+// @Param unregisterRequest body		UnRegisterAgent true	"Agent registration information to remove from databases"
+// @Accept json
+// @Produce json
+// @Success 200 {string} ok
+// @Router /agent/management/remove [post]
 
+func UnRegister(g *gin.Context, sqlite *sql.DB, valkey valkey.Client) {
+	var unregisterRequest UnRegisterAgent
+	err := g.ShouldBindBodyWithJSON(&unregisterRequest)
+	if err != nil {
+		g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	secret, err := db.Get_Valkey_Secrets(valkey)
+	if err != nil {
+		g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	if secret != unregisterRequest.Key {
+		err = fmt.Errorf("invalid registration key!")
+		g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	agent_name, err := db.DecodeToken(unregisterRequest.JwtKey)
+	if err != nil {
+		err = fmt.Errorf("invalid registration key!")
+		g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	err = db.SQL_Delete(sqlite, agent_name.Username)
+	if err != nil {
+		g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	err = db.Valkey_RemoveAgent(valkey, agent_name.Username)
+	if err != nil {
+		g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+		return
+	}
+	g.JSON(http.StatusOK, `ok`)
+}

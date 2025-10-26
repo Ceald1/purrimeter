@@ -102,3 +102,9 @@ func Valkey_FetchAgent(client valkey.Client, agentName string) (err error) {
 	}
 	return fmt.Errorf("agent doesn't exist!")
 }
+
+func Valkey_RemoveAgent(client valkey.Client, agentName string) (err error) {
+	key := fmt.Sprintf("agent:%s", strings.ToLower(agentName))
+	err = client.Do(ctx, client.B().Del().Key(key).Build()).Error()
+	return err
+}
