@@ -59,6 +59,7 @@ func main()  {
    }
 
 
+
    r := gin.Default()
    docs.SwaggerInfo.BasePath = "/api/v1"
    v1 := r.Group("/api/v1")

@@ -25,7 +25,9 @@ func Create_Indices(client *Manticoresearch.APIClient) error {
 	query := `CREATE TABLE IF NOT EXISTS purrimeter_raw (  
         ts BIGINT,  
         data JSON,  
-        raw_text TEXT
+        raw_text TEXT,
+		log_number BIGINT
+
     ) type='rt'`  
 	  
 	_, httpResp, err := client.UtilsAPI.Sql(ctx).Body(query).Execute()  
@@ -40,7 +42,8 @@ func Create_Indices(client *Manticoresearch.APIClient) error {
 	query = `CREATE TABLE IF NOT EXISTS purrimeter_alerts (  
         ts BIGINT,  
         data JSON,  
-        raw_text TEXT  
+        raw_text TEXT,  
+		alert_num BIGINT
     ) type='rt'`  
 	  
 	_, httpResp, err = client.UtilsAPI.Sql(ctx).Body(query).Execute()  
@@ -74,7 +77,8 @@ func convertTimestampToInt64(timestampStr string) (int64, error) {
 }  
 
 func Manti_SubmitLogRaw(client *Manticoresearch.APIClient, log map[string]interface{}) error {  
-    // Extract timestamp  
+    // Extract timestamp
+	nextID := time.Now().UnixNano()
     timestampStr, ok := log["timestamp"].(string)  
     if !ok {  
         return fmt.Errorf("timestamp is missing or not a string")  
@@ -97,6 +101,7 @@ func Manti_SubmitLogRaw(client *Manticoresearch.APIClient, log map[string]interf
     formatted_log["raw_text"] = string(stringifiedLog)
     // JSON field should be the actual map, not stringified
     formatted_log["data"] = log
+	formatted_log["log_number"] = nextID
   
     insertReq := Manticoresearch.NewInsertDocumentRequest("purrimeter_raw", formatted_log)  
     insertReq.SetId(generateLogID(string(stringifiedLog), timestamp))  
