@@ -73,7 +73,7 @@ func createTables(db *sql.DB) (err error) {
 
 
 func SQL_Init() (db *sql.DB, err error){
-	db, err = sql.Open("sqlite3", "./api.db")
+	db, err = sql.Open("sqlite3", "/db/api.db")
 	if err != nil {
 		return
 	}

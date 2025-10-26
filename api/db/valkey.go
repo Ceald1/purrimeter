@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/valkey-io/valkey-go"
 )
@@ -17,6 +18,7 @@ func Valkey_Init() (client valkey.Client, err error) {
 
 
 func Valkey_Secrets(client valkey.Client) (err error) {
+	client.Do(ctx, client.B().Flushall().Build())
 	var secret_key string
 	db, err := SQL_Init()
 	if err != nil {
@@ -90,7 +92,7 @@ func ValkeyAgentToDB(client valkey.Client, agentName string) (err error) {
 }
 
 func Valkey_FetchAgent(client valkey.Client, agentName string) (err error) {
-	key := fmt.Sprintf("agent:%s", agentName)
+	key := fmt.Sprintf("agent:%s", strings.ToLower(agentName))
 	result, err := client.Do(ctx, client.B().Exists().Key(key).Build()).AsInt64()
 	if err != nil {
 		return err

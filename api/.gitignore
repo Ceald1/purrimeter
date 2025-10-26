@@ -1,2 +1,4 @@
 data/
 certs/
+/data/binlog/
+.data/

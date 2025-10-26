@@ -8,6 +8,7 @@ import (
    "github.com/Ceald1/purrimeter/api/management"
    "net/http"
    "github.com/Ceald1/purrimeter/api/db"
+   "github.com/Ceald1/purrimeter/api/logs"
 )
 // example code from: https://github.com/swaggo/gin-swagger
 
@@ -35,7 +36,7 @@ func RedirectHTTP(g *gin.Context) {
 
 func main()  {
    // stuff for initialization
-   _, err := db.SQL_Init()
+   sql, err := db.SQL_Init()
    if err != nil {
       panic(err)
    }
@@ -51,7 +52,11 @@ func main()  {
    if err != nil {
       panic(err)
    }
-
+   manti := db.Manti_Init()
+   err = db.Create_Indices(manti)
+   if err != nil {
+      panic(err)
+   }
 
 
    r := gin.Default()
@@ -66,7 +71,15 @@ func main()  {
       {
          management_agent := agent.Group("/management")
          {
-            management_agent.POST("/register", management.RegisterAgent)
+            management_agent.POST("/register", func(ctx *gin.Context) {
+               management.RegisterAgent(ctx, sql, val)
+            })
+         }
+         logs_agent := agent.Group("/logs")
+         {
+            logs_agent.POST("/agentLogs", func(ctx *gin.Context) {
+               logs.AgentLogs(val, ctx, manti)
+            })
          }
       }
 

@@ -46,82 +46,97 @@ func parseSyslogLine(line string) (*SyslogMessage, error) {
 	}, nil
 }
 
-func RsyslogTail(logPath string, url string) (err error) {
-	// tails log file, decodes to json, and sends line to server
-	
+func RsyslogTail(logPath string, url string, apiJWT string) (err error) {
 	t, err := tail.TailFile(logPath, tail.Config{Follow: true, ReOpen: true})
 	if err != nil {
 		return
 	}
 	logger := rus.New()
+	
 	for l := range t.Lines {
 		line := l.Text
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
+		
 		json_log := decodeLog(line, logger)
-		if json_log["timestamp"] != nil {
-			jsonData, err := json.Marshal(json_log)
-			if err != nil {
-				break
-			}
-			if json_log["program"] != "sysmon"{
-				err = senders.SendJson(url, jsonData)
-				if err != nil {
-					fmt.Println(err.Error())
-				}
-			}else{
-				re_html := regexp.MustCompile(`&#x[A-Fa-f0-9]{0,2};`)
-				syslog := json_log["message"].(string)
-				syslog = strings.ToValidUTF8(syslog, "")
-				syslog = re_html.ReplaceAllString(syslog, "_")
-				sysmon_log := XML(syslog)
-				new_json_log := make(map[string]interface{})
-				new_json_log["timestamp"] = json_log["timestamp"]
-				new_json_log["program"]   = json_log["program"]
-				new_json_log["message"]   = sysmon_log
-				new_json_log["pid"]       = json_log["pid"]
-				new_json_log["host"]	  = json_log["host"]
-				new_json_log["logOrigin"] = "sysmon"
-				new_json_log["os"]  = json_log["os"]
-				jsonData, _= json.Marshal(new_json_log)
-				err = senders.SendJson(url, jsonData)
-				if err != nil {
-					fmt.Println(err.Error())
-				}
-
-
-
-			}
-
+		if json_log["timestamp"] == nil {
+			continue  // Skip if no timestamp
 		}
-
+		
+		json_log_new := make(map[string]interface{})
+		json_log_new["raw_log"] = json_log
+		
+		if json_log["program"] != "sysmon" {
+			jsonData, err := json.Marshal(json_log_new)
+			if err != nil {
+				fmt.Printf("Marshal error: %v\n", err)
+				continue  // Skip this log, don't break
+			}
+			
+			if err := senders.SendJson(url, jsonData, apiJWT); err != nil {
+				fmt.Printf("Send error: %v\n", err)
+			}
+		} else {
+			// Sysmon processing
+			re_html := regexp.MustCompile(`&#x[A-Fa-f0-9]{0,2};`)
+			syslog := json_log["message"].(string)
+			syslog = strings.ToValidUTF8(syslog, "")
+			syslog = re_html.ReplaceAllString(syslog, "_")
+			
+			sysmon_log := XML(syslog)
+			
+			new_json_log := make(map[string]interface{})
+			new_json_log["timestamp"] = json_log["timestamp"]
+			new_json_log["program"]   = json_log["program"]
+			new_json_log["message"]   = sysmon_log
+			new_json_log["pid"]       = json_log["pid"]
+			new_json_log["host"]      = json_log["host"]
+			new_json_log["logOrigin"] = "sysmon"
+			new_json_log["os"]        = json_log["os"]
+			
+			json_log_new := make(map[string]interface{})
+			json_log_new["raw_log"] = new_json_log
+			
+			jsonData, err := json.Marshal(json_log_new)
+			if err != nil {
+				fmt.Printf("Marshal error (sysmon): %v\n", err)
+				continue  // Skip this log, don't break
+			}
+			
+			if err := senders.SendJson(url, jsonData, apiJWT); err != nil {
+				fmt.Printf("Send error (sysmon): %v\n", err)
+			}
+		}
 	}
-	return
+	
+	return nil
 }
 
 
-func decodeLog(log string, logger *rus.Logger)(output map[string]interface{}){
-	// decode log to prep it to be sent as json
+func decodeLog(log string, logger *rus.Logger) (output map[string]interface{}) {
 	info, _ := goInfo.GetInfo()
 	log_message, err := parseSyslogLine(log)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
+	if err != nil || log_message == nil {
+		fmt.Printf("Parse error: %v\n", err)
+		return make(map[string]interface{})  // Return empty map instead of nil
 	}
+	
 	logger.SetFormatter(&rus.JSONFormatter{
-		TimestampFormat:time.RFC3339,
+		TimestampFormat: time.RFC3339,
 	})
 	logger.SetLevel(rus.InfoLevel)
+	
 	entry := rus.Fields{
-		"timestamp": 	log_message.Timestamp,
-		"program":   	log_message.Program,
-		"message":   	log_message.Message,
-		"pid":       	log_message.PID,
-		"host":      	info.Hostname,
-		"logOrigin":    "syslog",
-		"os":     info.GoOS,
+		"timestamp":  log_message.Timestamp,
+		"program":    log_message.Program,
+		"message":    log_message.Message,
+		"pid":        log_message.PID,
+		"host":       info.Hostname,
+		"logOrigin":  "syslog",
+		"os":         info.GoOS,
 	}
+	
 	output = map[string]interface{}(entry)
 	return
 }

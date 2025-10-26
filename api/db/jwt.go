@@ -20,7 +20,7 @@ func CreateToken(agentName string) (string, error) {
 	return token.SignedString(secret)
 }
 
-func DecodeToken(tokenString string) (jwt.MapClaims, error) {
+func DecodeToken(tokenString string) (*AgentClaims, error) {
     secretKey := []byte(os.Getenv("SECRET"))
     
     // Parse and verify the token
@@ -37,7 +37,7 @@ func DecodeToken(tokenString string) (jwt.MapClaims, error) {
     }
 
     // Extract and validate claims
-    if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+    if claims, ok := token.Claims.(*AgentClaims); ok && token.Valid {
         return claims, nil
     }
 

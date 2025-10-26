@@ -20,8 +20,10 @@ services:
       - REDIS_PASS=${REDIS_PASS}
       - SECRET=${SECRET}
       - API_ADMIN=${API_ADMIN}
+      - MANTICORE_HOST=${MANTICORE_HOST}
     volumes:
-      - ./:/api
+      # - ./:/api
+      - ./db/data:/db
   valkey: # you can switch this out for redis
     image: valkey/valkey:9-alpine
     container_name: valkey
@@ -38,7 +40,7 @@ services:
     image: manticoresearch/manticore
     restart: always
     volumes:
-      - ./data:/var/lib/manticore
+      - ./.data:/var/lib/manticore
       # - ./certs:/etc/manticoresearch/certs
       # - ./manticore.conf:/etc/manticoresearch/manticore.conf
     ports:
@@ -52,6 +54,9 @@ services:
       memlock:
         soft: -1
         hard: -1
+    
+    networks:
+      - go-network
 
 networks:
   go-network:

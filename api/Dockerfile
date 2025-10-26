@@ -26,15 +26,16 @@ RUN swag init
 RUN echo "building API....."
 
 # Build the application
-RUN go build -o main .
+# RUN go build -o main .
 
 # Expose the port the app runs on
 EXPOSE 8080
 ENV REDIS_PASS $REDIS_PASS
 ENV SECRET $SECRET
 ENV API_ADMIN $API_ADMIN
+ENV MANTICORE_HOST $MANTICORE_HOST
 
 
 # Command to run the application
-CMD ["./main"]
+CMD ["go", "run", "."]
 

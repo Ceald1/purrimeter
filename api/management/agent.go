@@ -1,10 +1,12 @@
 package management
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/valkey-io/valkey-go"
 
 	"net/http"
 
@@ -41,20 +43,20 @@ type NewJWTRequest struct {
 // @Produce json
 // @Success 200 {string} jwt token
 // @Router /agent/management/register [post]
-func RegisterAgent( g *gin.Context) {
-	sql, err := db.SQL_Init()
-	if err != nil {
-		g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-		return
-	}
-	valkey, err := db.Valkey_Init()
-	if err != nil {
-		g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
-		return
-	}
+func RegisterAgent( g *gin.Context, sqlite *sql.DB, valkey valkey.Client) {
+	// sql, err := db.SQL_Init()
+	// if err != nil {
+	// 	g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	// 	return
+	// }
+	// valkey, err := db.Valkey_Init()
+	// if err != nil {
+	// 	g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	// 	return
+	// }
 
 	var registerRequest Registration
-	err = g.ShouldBindBodyWithJSON(&registerRequest)
+	err := g.ShouldBindBodyWithJSON(&registerRequest)
 	if err != nil {
 		g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
@@ -71,7 +73,7 @@ func RegisterAgent( g *gin.Context) {
 		g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
-	err = db.RegisterAgent(sql, registerRequest.Name)
+	err = db.RegisterAgent(sqlite, registerRequest.Name)
 	if err != nil {
 		g.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
@@ -91,3 +93,6 @@ func RegisterAgent( g *gin.Context) {
 	g.JSON(http.StatusOK, jw)
 
 }
+
+
+

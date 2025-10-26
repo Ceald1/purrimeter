@@ -1,12 +1,11 @@
 module github.com/Ceald1/purrimeter/api
 
-exclude github.com/Ceald1/purrimeter/api/data v0.0.0
-
 go 1.25.1
 
 require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/golang-jwt/jwt/v5 v5.3.0
+	github.com/manticoresoftware/manticoresearch-go v1.10.0
 	github.com/mattn/go-sqlite3 v1.14.32
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.1
@@ -59,4 +58,5 @@ require (
 	golang.org/x/text v0.30.0 // indirect
 	golang.org/x/tools v0.38.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
+	gopkg.in/validator.v2 v2.0.1 // indirect
 )
