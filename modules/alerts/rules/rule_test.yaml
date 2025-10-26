@@ -1,0 +1,16 @@
+id: "test rule"
+name: "testing rule"
+severity: "uh oh"
+level: 99999
+groups: 
+ - "testing"
+category: "test"
+description: "this is a testing and example rule"
+sources:
+ - "sysmon"
+ - "syslog"
+conditions:
+  operator: "contains"
+  values:
+    - "sudo"
+    - "go"
