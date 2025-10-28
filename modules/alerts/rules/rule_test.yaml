@@ -1,16 +1,32 @@
-id: "test rule"
-name: "testing rule"
-severity: "uh oh"
-level: 99999
-groups: 
- - "testing"
-category: "test"
-description: "this is a testing and example rule"
-sources:
- - "sysmon"
- - "syslog"
-conditions:
-  operator: "contains"
-  values:
-    - "sudo"
-    - "go"
+
+rules:
+  - rule:
+      id: "test rule"
+      name: "testing rule"
+      severity: "uh oh"
+      level: 99999
+      groups: 
+      - "testing"
+      description: "this is a testing and example rule"
+      sources:
+      - "sysmon"
+      - "syslog"
+      condition:
+        operator: "contains"
+        values:
+          - "sudo"
+          - "go"
+  - rule:
+      id: "another test rule"
+      name: "another testing rule"
+      severity: "uh oh"
+      level: 99999
+      groups: 
+      - "testing"
+      description: "this is a testing and example rule 2"
+      sources:
+      - "sysmon"
+      condition:
+        operator: "regex"
+        values:
+          - "^(10|172.(1[6-9]|2[0-9]|3[01])|192.168).\\d{1,3}.\\d{1,3}$"

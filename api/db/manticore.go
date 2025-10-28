@@ -22,40 +22,40 @@ func Manti_Init() (*Manticoresearch.APIClient){
 }
 
 func Create_Indices(client *Manticoresearch.APIClient) error {  
-	query := `CREATE TABLE IF NOT EXISTS purrimeter_raw (  
-        ts BIGINT,  
-        data JSON,  
+	query := `CREATE TABLE IF NOT EXISTS purrimeter_raw (
+        ts BIGINT,
+        data JSON,
         raw_text TEXT,
 		log_number BIGINT
 
-    ) type='rt'`  
-	  
-	_, httpResp, err := client.UtilsAPI.Sql(ctx).Body(query).Execute()  
-	if err != nil {  
-		if httpResp != nil {  
-			body, _ := io.ReadAll(httpResp.Body)  
-			fmt.Printf("Error creating purrimeter_raw: %s\n", string(body))  
-		}  
-		return err  
-	}  
-	  
-	query = `CREATE TABLE IF NOT EXISTS purrimeter_alerts (  
-        ts BIGINT,  
-        data JSON,  
-        raw_text TEXT,  
+    ) type='rt'`
+
+	_, httpResp, err := client.UtilsAPI.Sql(ctx).Body(query).Execute()
+	if err != nil {
+		if httpResp != nil {
+			body, _ := io.ReadAll(httpResp.Body)
+			fmt.Printf("Error creating purrimeter_raw: %s\n", string(body))
+		}
+		return err
+	}
+
+	query = `CREATE TABLE IF NOT EXISTS purrimeter_alerts (
+        ts BIGINT,
+        data JSON,
+        raw_text TEXT,
 		alert_num BIGINT
-    ) type='rt'`  
+    ) type='rt'`
 	  
-	_, httpResp, err = client.UtilsAPI.Sql(ctx).Body(query).Execute()  
-	if err != nil {  
-		if httpResp != nil {  
+	_, httpResp, err = client.UtilsAPI.Sql(ctx).Body(query).Execute()
+	if err != nil {
+		if httpResp != nil {
 			body, _ := io.ReadAll(httpResp.Body)  
-			fmt.Printf("Error creating purrimeter_alerts: %s\n", string(body))  
-		}  
-		return err  
-	}  
-	  
-	return nil  
+			fmt.Printf("Error creating purrimeter_alerts: %s\n", string(body))
+		}
+		return err
+	}
+
+	return nil
 }
 
 func generateLogID(data string, ts int64) uint64 {  

@@ -42,21 +42,30 @@ func NewDBModulehandler (DBHost string) *DBFramework {
 	return db
 }
 
-
-func ( s *DBFramework) SQL(query string) (result map[string]interface{}, err error) {
-	// full SQL querying
-	_, httpResp, err := s.MantiClient.UtilsAPI.Sql(ctx).Body(query).Execute()
+func (s *DBFramework) SQL(query string) (final_result map[string]interface{}, err error) {
+	// Create the SQL request properly
+	_, httpResp, err := s.MantiClient.UtilsAPI.Sql(ctx).Body(query).RawResponse(false).Execute()
 	if err != nil {
-		return
+		return nil, err
 	}
 	if httpResp == nil {
-		return
+		return nil, fmt.Errorf("nil http response")
 	}
 	defer httpResp.Body.Close()
-	err = json.NewDecoder(httpResp.Body).Decode(&result)
-	return
-}
+	// fmt.Println(httpResp.Body)
+	err = json.NewDecoder(httpResp.Body).Decode(&final_result)
+	// var result []map[string]interface{}
+	// err = json.NewDecoder(httpResp.Body).Decode(&result)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// final_result = make(map[string]interface{})
+	// final_result["hits"] = map[string]interface{}{
+	// 	"hits": result,
+	// }
 
+	return final_result, nil
+}
 
 func (s *DBFramework) MatchJSON(match_value string, matchKey string, indexName string, limit *int32) (result map[string]interface{}, err error) {
 	// searches using JSON
@@ -127,13 +136,9 @@ func convertTimestampToInt64(timestampStr string) (int64, error) {
     return t.Unix(), nil  
 }  
 
-func manti_SubmitLogRaw(client *manticoresearch.APIClient, log map[string]interface{}, index string) error {  
-    // Extract timestamp
+func manti_SubmitLogRaw(client *manticoresearch.APIClient, log map[string]interface{}, index string, timestampStr string) error {  
 	nextID := time.Now().UnixNano()
-    timestampStr, ok := log["timestamp"].(string)  
-    if !ok {  
-        return fmt.Errorf("timestamp is missing or not a string")  
-    }  
+ 
   
     timestamp, err := convertTimestampToInt64(timestampStr)  
     if err != nil {  
@@ -142,6 +147,7 @@ func manti_SubmitLogRaw(client *manticoresearch.APIClient, log map[string]interf
   
     // Serialize the original log for raw_text  
     stringifiedLog, err := json.Marshal(log)  
+	// fmt.Println(string(stringifiedLog))
     if err != nil {  
         return err  
     }  
@@ -152,7 +158,8 @@ func manti_SubmitLogRaw(client *manticoresearch.APIClient, log map[string]interf
     formatted_log["raw_text"] = string(stringifiedLog)
     // JSON field should be the actual map, not stringified
     formatted_log["data"] = log
-	formatted_log["log_number"] = nextID
+	formatted_log["alert_num"] = nextID
+	// fmt.Println(formatted_log)
   
     insertReq := manticoresearch.NewInsertDocumentRequest(index, formatted_log)  
     insertReq.SetId(generateLogID(string(stringifiedLog), timestamp))  
@@ -161,8 +168,9 @@ func manti_SubmitLogRaw(client *manticoresearch.APIClient, log map[string]interf
     return err  
 }
 
-func (s *DBFramework) AddLog(log map[string]interface{}, index string) (err error) {
-	err = manti_SubmitLogRaw(s.MantiClient, log, index)
+
+func (s *DBFramework) AddLog(log map[string]interface{}, index string, timestamp string) (err error) {
+	err = manti_SubmitLogRaw(s.MantiClient, log, index, timestamp)
 	return err
 }
 
