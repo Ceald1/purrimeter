@@ -33,7 +33,7 @@ func createTables(db *sql.DB) (err error) {
 	query = `
 		CREATE TABLE IF NOT EXISTS users (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL,
+		name TEXT NOT NULL UNIQUE,
 		hash TEXT NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
@@ -81,7 +81,7 @@ func SQL_Init() (db *sql.DB, err error){
 	return
 }
 
-
+// agent stuff
 func RegisterAgent(db *sql.DB, agentName string) error {
 	name := strings.ToLower(agentName)
 	
@@ -210,4 +210,35 @@ func SQL_Delete(db *sql.DB, agentName string) (err error) {
 	query := `DELETE FROM agents WHERE name = ?`
 	_, err = db.Exec(query, agentName)
 	return err
+}
+
+
+// user auth and creation
+func CreateUser(db *sql.DB, username, password string) (err error) {
+	hashed := sha256.New()
+	hashed.Write([]byte(password))
+	hashedPass := hex.EncodeToString(hashed.Sum(nil))
+
+	query := `INSERT INTO users (username, hash) VALUES (?, ?);`
+	_, err = db.Exec(query, username, hashedPass)
+	return err
+}
+
+func AuthUser(db *sql.DB, username, password string) (err error) {
+	hashed := sha256.New()
+	hashed.Write([]byte(password))
+	hashedPass := hex.EncodeToString(hashed.Sum(nil))
+	var dbHash string
+	query := `SELECT hash FROM users WHERE name = ?;`
+	err = db.QueryRow(query, username).Scan(&dbHash)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return fmt.Errorf("invalid password or username!")
+		}
+		return err
+	}
+	if dbHash == hashedPass {
+		return nil
+	}
+	return fmt.Errorf("invalid password or username!")
 }

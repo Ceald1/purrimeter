@@ -164,7 +164,10 @@ func manti_SubmitLogRaw(client *manticoresearch.APIClient, log map[string]interf
     insertReq := manticoresearch.NewInsertDocumentRequest(index, formatted_log)  
     insertReq.SetId(generateLogID(string(stringifiedLog), timestamp))  
   
-    _, _, err = client.IndexAPI.Insert(ctx).InsertDocumentRequest(*insertReq).Execute()  
+    _, _, err = client.IndexAPI.Insert(ctx).InsertDocumentRequest(*insertReq).Execute()
+	if err != nil {
+		fmt.Println(string(stringifiedLog))
+	}
     return err  
 }
 

@@ -1,5 +1,5 @@
 package main
-
+// alerts microservice/module
 import (
 	"fmt"
 	"os"
@@ -7,6 +7,9 @@ import (
 	"time"
 	"strings"
 	"regexp"
+	// "encoding/json"
+	// "net/http"
+	// "bytes"
 
 	Framework "github.com/Ceald1/purrimeter/modules/framework"
 	YAML "github.com/goccy/go-yaml"
@@ -58,6 +61,10 @@ func main(){
 	if manticoreHost == "" {
 		manticoreHost = "http://127.0.0.1:9308"
 	}
+	// orchestratorHost := os.Getenv("ORCHESTRA_HOST")
+	// if orchestratorHost == "" {
+	// 	orchestratorHost = "http://127.0.0.1:9080"
+	// }
 	framework := Framework.NewDBModulehandler(manticoreHost)
 	ruleList, err := getRules()
 	if err != nil {
@@ -75,6 +82,7 @@ func main(){
 			fmt.Println(err.Error())
 		}
 		if queryResults == nil {
+			time.Sleep(5000 * time.Millisecond)
 			continue
 		}
 		logs_raw := queryResults["hits"].(map[string]interface{})["hits"].([]interface{})
@@ -87,6 +95,7 @@ func main(){
 			}
 		}
 		if len(logs) < 1 {
+			time.Sleep(5000 * time.Millisecond)
 			continue
 		}
 		for _, log = range logs {
@@ -150,10 +159,19 @@ func main(){
 						"sources": rule["sources"],
 					}
 					alert["log_data"] = log_data
+					values_found = nil
 					err = framework.AddLog(alert, `purrimeter_alerts`,timestamp)
-					if err != nil {
+					if err != nil && !strings.Contains(err.Error(), "409") {
 						fmt.Println(err.Error())
 					}
+					// else{
+					// 	jsString, _ := json.Marshal(alert)
+					// 	_, err = http.Post(orchestratorHost, "application/json", bytes.NewBuffer(jsString))
+					// 	if err != nil {
+					// 		fmt.Println(err)
+					// 	}
+
+					// }
 				}
 			}
 			
@@ -164,7 +182,7 @@ func main(){
 			lastQueryFile.WriteString(query)
 		}
 
-		time.Sleep(200 * time.Millisecond)
+		time.Sleep(2000 * time.Millisecond)
 	}
 }
 

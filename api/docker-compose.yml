@@ -54,7 +54,8 @@ services:
       memlock:
         soft: -1
         hard: -1
-    
+    environment:
+      - EXTRA_PARAMS='http_allow_origin=*'
     networks:
       - go-network
 
@@ -64,3 +65,4 @@ networks:
 
 volumes:
   valkey_data:
+
