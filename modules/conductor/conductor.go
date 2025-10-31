@@ -31,7 +31,10 @@ func main(){
 			return
 		}
 		if strings.Contains(module_type, "!"){
-			excluded_modules := modules
+			excluded_modules := make(map[string][]ModuleConfig)
+			for k, v := range modules {
+				excluded_modules[k] = v
+			}
 			delete(excluded_modules, strings.Replace(module_type, "!", "", 1))
 			ctx.JSON(200, excluded_modules)
 			return
