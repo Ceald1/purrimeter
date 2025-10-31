@@ -1,0 +1,5 @@
+[module]
+url = "http://localhost:8080/something/something"
+type = "enrichment"
+description = "enriches"
+## Enrichment takes priority over "webhook" modules and others
