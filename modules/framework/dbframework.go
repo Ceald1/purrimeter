@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	manticoresearch "github.com/manticoresoftware/manticoresearch-go"
@@ -164,10 +165,14 @@ func manti_SubmitLogRaw(client *manticoresearch.APIClient, log map[string]interf
     insertReq := manticoresearch.NewInsertDocumentRequest(index, formatted_log)  
     insertReq.SetId(generateLogID(string(stringifiedLog), timestamp))  
   
-    _, _, err = client.IndexAPI.Insert(ctx).InsertDocumentRequest(*insertReq).Execute()
-	if err != nil {
-		fmt.Println(string(stringifiedLog))
-	}
+    retry:
+        time.Sleep(100 * time.Millisecond)
+         _, _, err = client.IndexAPI.Insert(ctx).InsertDocumentRequest(*insertReq).Execute()
+    if err != nil {
+        if strings.Contains("EOF", err.Error()) {
+            goto retry
+        }
+    }
     return err  
 }
 

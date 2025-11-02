@@ -45,7 +45,7 @@ func main(){
 	stat, _ := lastQueryFile.Stat()
 	if stat.Size() == 0 {
 		fmt.Println("no last query found....")
-		query = `SELECT * FROM purrimeter_raw LIMIT 200 OFFSET 0;`
+		query = `SELECT * FROM purrimeter_raw LIMIT 420 OFFSET 0;`
 		lastQueryFile.WriteString(query)
 	} else {
 		buf := make([]byte, stat.Size())
@@ -80,6 +80,11 @@ func main(){
 		queryResults, err := framework.SQL(query)
 		if err != nil {
 			fmt.Println(err.Error())
+			if strings.Contains(err.Error(), "EOF") {
+				fmt.Println("end of data, eepy time!")
+				time.Sleep(5000 * time.Millisecond)
+				continue
+			}
 		}
 		if queryResults == nil {
 			time.Sleep(5000 * time.Millisecond)
@@ -158,11 +163,82 @@ func main(){
 						"groups": rule["groups"],
 						"sources": rule["sources"],
 					}
-					alert["log_data"] = log_data
+					if log_data["logOrigin"] == "sysmon"{
+						alert["log_data"] = map[string]interface{}{
+							"eventData":map[string]interface{}{
+								"technique": GetSysmonDataString(log_data, 0),
+								"time": GetSysmonDataString(log_data, 1),
+								"processGUID": GetSysmonDataString(log_data, 2),
+								"processID": GetSysmonDataString(log_data, 3),
+								"image": GetSysmonDataString(log_data, 4),
+								"fileVersion": GetSysmonDataString(log_data, 5),
+								"description": GetSysmonDataString(log_data, 6),
+								"product": GetSysmonDataString(log_data, 7),
+								"company": GetSysmonDataString(log_data, 8),
+								"originalFileName": GetSysmonDataString(log_data, 9),
+								"commandLine":  GetSysmonDataString(log_data, 10),
+								"currentDirectory": GetSysmonDataString(log_data, 11),
+								"user": GetSysmonDataString(log_data, 12),
+								"logonGuid": GetSysmonDataString(log_data, 13),
+								"logonId": GetSysmonDataString(log_data, 14),
+								"terminalSessionId": GetSysmonDataString(log_data, 15),
+								"integrityLevel": GetSysmonDataString(log_data, 16),
+								"hashes": GetSysmonDataString(log_data, 17),
+								"parentProcessGuid": GetSysmonDataString(log_data, 18),
+								"parentProcessId": GetSysmonDataString(log_data, 19),
+								"parentImage": GetSysmonDataString(log_data, 20),
+								"parentCommandLine": GetSysmonDataString(log_data, 21),
+								"parentUser":GetSysmonDataString(log_data, 22),
+							},
+							"host": log_data["host"],
+							"program": log_data["program"],
+							"logOrigin": log_data["logOrigin"],
+						}
+					}else{
+						msgParsed := strings.Split(log_data["message"].(string), " ; ")
+						alert["log_data"] = map[string]interface{}{
+							"eventData":map[string]interface{}{
+								"technique": "",
+								"time": log_data["timestamp"],
+								"processGUID": "",
+								"processID": "",
+								"image": "",
+								"fileVersion": "",
+								"description": "",
+								"product": "",
+								"company": "",
+								"originalFileName": "",
+								"commandLine": strings.ReplaceAll(msgParsed[3], "COMMAND=", ""),
+								"currentDirectory": strings.ReplaceAll(msgParsed[1], "PWD=", ""),
+								"user": strings.ReplaceAll(msgParsed[2], "USER=", ""),
+								"logonGuid": "",
+								"logonId": "",
+								"terminalSessionId": "",
+								"integrityLevel": "",
+								"hashes": "",
+								"parentProcessGuid": "",
+								"parentProcessId": "",
+								"parentImage":"",
+								"parentCommandLine": "",
+								"parentUser":strings.Split(msgParsed[0], " : TTY=")[0],
+							},
+							"host": log_data["host"],
+							"program": log_data["program"],
+							"logOrigin": log_data["logOrigin"],
+					}}
 					values_found = nil
 					err = framework.AddLog(alert, `purrimeter_alerts`,timestamp)
 					if err != nil && !strings.Contains(err.Error(), "409") {
 						fmt.Println(err.Error())
+						retry:
+							time.Sleep(100 * time.Millisecond)
+							err = framework.AddLog(alert, `purrimeter_alerts`,timestamp)
+						if err != nil {
+							if strings.Contains(err.Error(), "EOF") || strings.Contains(err.Error(),"http: server closed idle connection"){
+								fmt.Println("EOF Detected, probably too fast! eepy for 100 milliseconds")
+								goto retry
+							}
+						}
 					}
 					// else{
 					// 	jsString, _ := json.Marshal(alert)
@@ -182,11 +258,39 @@ func main(){
 			lastQueryFile.WriteString(query)
 		}
 
-		time.Sleep(2000 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 	}
 }
 
 	
+// Helper function
+func GetNestedString(m map[string]interface{}, keys ...string) string {
+    current := m
+    for i, key := range keys {
+        if i == len(keys)-1 {
+            // Last key - get the string value
+            if val, ok := current[key]; ok {
+                if str, ok := val.(string); ok {
+                    return str
+                }
+            }
+            return ""
+        }
+        
+        // Navigate deeper
+        if val, ok := current[key]; ok {
+            if nested, ok := val.(map[string]interface{}); ok {
+                current = nested
+            } else {
+                return ""
+            }
+        } else {
+            return ""
+        }
+    }
+    return ""
+}
+
 
 
 func getRules() (result []map[string]interface{}, err error) {
@@ -259,4 +363,23 @@ func rule2map(yamlStr string) (result []map[string]interface{}, err error) {
 	}
 	
 	return result, nil
+}
+func GetSysmonDataString(log_data map[string]interface{}, index int) string {
+    // Navigate to the Data array
+    if message, ok := log_data["message"].(map[string]interface{}); ok {
+        if event, ok := message["Event"].(map[string]interface{}); ok {
+            if eventData, ok := event["EventData"].(map[string]interface{}); ok {
+                if data, ok := eventData["Data"].([]interface{}); ok {
+                    if len(data) > 0 {
+                        if dataItem, ok := data[index].(map[string]interface{}); ok {
+                            if text, ok := dataItem["#text"].(string); ok {
+                                return text
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return ""
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
 	Manticoresearch "github.com/manticoresoftware/manticoresearch-go"
@@ -105,7 +106,16 @@ func Manti_SubmitLogRaw(client *Manticoresearch.APIClient, log map[string]interf
   
     insertReq := Manticoresearch.NewInsertDocumentRequest("purrimeter_raw", formatted_log)  
     insertReq.SetId(generateLogID(string(stringifiedLog), timestamp))  
-  
-    _, _, err = client.IndexAPI.Insert(ctx).InsertDocumentRequest(*insertReq).Execute()  
+    _, _, err = client.IndexAPI.Insert(ctx).InsertDocumentRequest(*insertReq).Execute()
+    
+    retry:
+        time.Sleep(100 * time.Millisecond)
+         _, _, err = client.IndexAPI.Insert(ctx).InsertDocumentRequest(*insertReq).Execute()
+    if err != nil {
+        if strings.Contains("EOF", err.Error()) {
+            goto retry
+        }
+    }
+
     return err  
 }

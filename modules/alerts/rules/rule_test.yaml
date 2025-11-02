@@ -15,7 +15,7 @@ rules:
         operator: "contains"
         values:
           - "sudo"
-          - " go "
+          - "/bin/sh"
   - rule:
       id: "another test rule"
       name: "another testing rule"
