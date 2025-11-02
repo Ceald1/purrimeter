@@ -128,21 +128,39 @@ func main(){
 				if !isAvailable(rule_sources, source){
 					continue
 				}
+				check, ok := condition["check"].(string)
+				if !ok {
+					check = ""
+				}
+				
+				var log_check string
 				switch operator{
 					case "contains":
+						if check != "" {
+							formatted := formatLogData(log_data)
+							log_check = formatted[check]
+						}else{
+							log_check = raw_log
+						}
 						for _, value := range values {
-							if strings.Contains(raw_log, value) == true {
+							if strings.Contains(log_check, value) == true {
 								values_found = append(values_found, value)
 							}
 						}
 					case "regex":
+						if check != "" {
+							formatted := formatLogData(log_data)
+							log_check = formatted[check]
+						}else{
+							log_check = raw_log
+						}
 						for _, value := range values{
 							re, err := regexp.Compile(value)
 							if err != nil {
 								fmt.Println("regex compile error:", err)
 								continue
 							}
-							if re.MatchString(raw_log) == true {
+							if re.MatchString(log_check) == true {
 								values_found = append(values_found, value)
 							}
 						}
@@ -382,4 +400,82 @@ func GetSysmonDataString(log_data map[string]interface{}, index int) string {
         }
     }
     return ""
+}
+func formatLogData(log_data map[string]interface{}) (formatted map[string]string) {
+    // Only process if it's sysmon and hasn't been formatted yet
+	formatted = make(map[string]string)
+    if log_data["logOrigin"] == "sysmon" {
+        // Check if already formatted
+        // if _, exists := log_data["eventData"]; exists {
+        //     return nil // Already formatted
+        // }
+        
+        // Extract all Sysmon data
+        sysmonData := ExtractSysmonData(log_data)
+        
+        // Add the parsed eventData directly to log_data
+        formatted = sysmonData
+        // formatted["host"] = log_data["host"]
+        // formatted["program"] = log_data["program"]
+		return formatted
+	}
+    // } else if log_data["logOrigin"] == "sudo" || log_data["logOrigin"] == "su" {
+    //     // Check if already formatted
+    //     if _, exists := log_data["eventData"]; exists {
+    //         return nil
+    //     }
+        
+        msgParsed := strings.Split(log_data["message"].(string), " ; ")
+        if len(msgParsed) < 4 {
+            return nil // Not enough parts to parse
+        }
+        
+        formatted = map[string]string{
+            "commandLine":       strings.ReplaceAll(msgParsed[3], "COMMAND=", ""),
+            "currentDirectory":  strings.ReplaceAll(msgParsed[1], "PWD=", ""),
+            "user":              strings.ReplaceAll(msgParsed[2], "USER=", ""),
+            "parentUser":        strings.Split(msgParsed[0], " : TTY=")[0],
+        }
+		return formatted
+    }
+func ExtractSysmonData(log_data map[string]interface{}) map[string]string {
+    result := make(map[string]string)
+    
+    message, ok := log_data["message"].(map[string]interface{})
+    if !ok {
+        return result
+    }
+    
+    event, ok := message["Event"].(map[string]interface{})
+    if !ok {
+        return result
+    }
+    
+    eventData, ok := event["EventData"].(map[string]interface{})
+    if !ok {
+        return result
+    }
+    
+    data, ok := eventData["Data"].([]interface{})
+    if !ok {
+        return result
+    }
+    
+    // Loop through all Data items and extract by @Name
+    for _, item := range data {
+        dataItem, ok := item.(map[string]interface{})
+        if !ok {
+            continue
+        }
+        
+        name, nameOk := dataItem["@Name"].(string)
+        text, textOk := dataItem["#text"].(string)
+        
+        if nameOk && textOk {
+			name = strings.ToLower(string(name[0])) + name[1:] // for consistency with the alerts sent
+            result[name] = text
+        }
+    }
+    
+    return result
 }

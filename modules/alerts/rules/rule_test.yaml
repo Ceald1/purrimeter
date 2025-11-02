@@ -1,6 +1,21 @@
 
 rules:
   - rule:
+      id: "another test rule 3"
+      name: "another testing rule 3"
+      severity: "uh oh"
+      level: 999999
+      groups: 
+      - "testing"
+      description: "this is a testing and example rule 3"
+      sources:
+      - "sysmon"
+      condition:
+        operator: "contains"
+        check: "commandLine"
+        values:
+          - "/bin/sh"
+  - rule:
       id: "test rule"
       name: "testing rule"
       severity: "uh oh"
