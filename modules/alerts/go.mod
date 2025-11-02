@@ -3,7 +3,11 @@ module github.com/Ceald1/purrimeter/modules/alerts
 go 1.25.1
 
 require (
-	github.com/Ceald1/purrimeter/modules v0.0.0-20251028030852-a83023555ec3 // indirect
+	github.com/Ceald1/purrimeter/modules/framework v0.0.0-20251102050423-bd151a92841a
+	github.com/goccy/go-yaml v1.18.0
+)
+
+require (
 	github.com/bytedance/sonic v1.14.0 // indirect
 	github.com/bytedance/sonic/loader v0.3.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
@@ -14,7 +18,6 @@ require (
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.27.0 // indirect
 	github.com/goccy/go-json v0.10.2 // indirect
-	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
