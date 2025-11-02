@@ -14,7 +14,7 @@ rules:
         operator: "contains"
         check: "commandLine"
         values:
-          - "/bin/sh"
+          - "/usr/bin/sh"
   - rule:
       id: "test rule"
       name: "testing rule"

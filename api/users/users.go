@@ -73,7 +73,7 @@ func Login( g *gin.Context, sqlite *sql.DB) {
 // @Param jwtToken body		TokenCheck true	"user jwt"
 // @Accept json
 // @Produce json
-// @Success 200 {string} ""
+// @Success 200 {string} ok
 // @Router /users/check [post]
 func Auth( g *gin.Context) {
 	var jwtToken TokenCheck
@@ -87,5 +87,5 @@ func Auth( g *gin.Context) {
 		g.JSON(403, ErrorResponse{Error: err.Error()})
 		return
 	}
-	g.JSON(http.StatusOK, "")
+	g.JSON(http.StatusOK, "ok")
 }
