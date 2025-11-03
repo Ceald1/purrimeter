@@ -1,0 +1,22 @@
+services:
+  conductor:
+    container_name: conductor
+    restart: always
+    ports:
+      - ${CONDUCTOR_HOST}:${CONDUCTOR_PORT}:${CONDUCTOR_PORT}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - CONDUCTOR_PORT=${CONDUCTOR_PORT}
+    volumes:
+      - ./:/app
+      - ./modules:/app/modules
+    networks:
+      - go-network
+
+
+# networks:
+#   go-network:
+#     external: true
+#     name: "go-network"

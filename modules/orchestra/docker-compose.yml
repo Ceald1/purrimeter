@@ -1,0 +1,22 @@
+services:
+  orchestra:
+    container_name: orchestra
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - go-network
+    volumes:
+      - ./:/app
+    environment:
+      - CONDUCTOR_HOST=${CONDUCTOR_HOST}
+      - CONDUCTOR_PORT=${CONDUCTOR_PORT}
+      - MANTICORE_HOST=${MANTICORE_HOST}
+      - MANTICORE_PORT=${MANTICORE_PORT}
+
+
+# networks:
+#   go-network:
+#     external: true
+#     name: "go-network"

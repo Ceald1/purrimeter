@@ -2,11 +2,7 @@ module github.com/Ceald1/purrimeter/modules/orchestra
 
 go 1.25.1
 
-require (
-	github.com/Ceald1/purrimeter/modules v0.0.0-20251028030852-a83023555ec3
-	github.com/mattn/go-sqlite3 v1.14.32
-	github.com/valkey-io/valkey-go v1.0.67
-)
+require github.com/Ceald1/purrimeter/modules v0.0.0-20251028030852-a83023555ec3
 
 require (
 	github.com/bytedance/sonic v1.14.0 // indirect
@@ -22,6 +18,7 @@ require (
 	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/manticoresoftware/manticoresearch-go v1.10.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

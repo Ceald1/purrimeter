@@ -1,2 +1,5 @@
 include:
   - path: ./api/docker-compose.yml
+  - path: ./modules/alerts/docker-compose.yml
+  - path: ./modules/orchestra/docker-compose.yml
+  - path: ./modules/conductor/docker-compose.yml

@@ -57,7 +57,7 @@ func main(){
 	}
 	fmt.Println(query)
 
-	manticoreHost := os.Getenv("MANTICORE_HOST")
+	manticoreHost := os.Getenv("MANTICORE_URL")
 	if manticoreHost == "" {
 		manticoreHost = "http://127.0.0.1:9308"
 	}

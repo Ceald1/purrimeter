@@ -1,0 +1,18 @@
+services:
+  alerts:
+    container_name: alerts
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - go-network
+    environment:
+      - MANTICORE_URL=${MANTICORE_URL}
+    volumes:
+      - ./rules:/app/rules
+      - ./:/app
+# networks:
+#   go-network:
+#     external: true
+#     name: "go-network"
