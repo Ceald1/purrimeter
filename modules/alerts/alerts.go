@@ -1,12 +1,15 @@
 package main
+
 // alerts microservice/module
 import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
-	"strings"
 	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
 	// "encoding/json"
 	// "net/http"
 	// "bytes"
@@ -33,8 +36,11 @@ func isAvailable(alpha []string, str string) bool {
 }
 
 func main(){
+	node_num := os.Getenv("NODE_NUMBER")
+	total_number_of_nodes, _ := strconv.Atoi(os.Getenv("NODE_TOTAL"))
+	mod, _ := strconv.Atoi(node_num)
 	// get last query
-	lastQueryFile, err := os.OpenFile("query.sql", os.O_RDWR|os.O_CREATE, 0644)
+	lastQueryFile, err := os.OpenFile(fmt.Sprintf("query_%s.sql", node_num), os.O_RDWR|os.O_CREATE, 0644)
 	var query string
 	if err != nil {
 		panic(err)
@@ -45,7 +51,10 @@ func main(){
 	stat, _ := lastQueryFile.Stat()
 	if stat.Size() == 0 {
 		fmt.Println("no last query found....")
-		query = `SELECT * FROM purrimeter_raw LIMIT 420 OFFSET 0;`
+		
+		// query = fmt.Sprintf(`SELECT * FROM purrimeter_raw WHERE log_number MOD %d = %d LIMIT 420 OFFSET 0;`, int64(total_number_of_nodes), int64(mod - 1))
+		query = fmt.Sprintf(`SELECT *, log_number MOD %d = %d FROM purrimeter_raw LIMIT 420 OFFSET 0;`, int64(total_number_of_nodes), int64(mod) - 1)
+		// 'SELECT *, log_number MOD 2 = 0 FROM purrimeter_raw WHERE log_number > 1 LIMIT 10'
 		lastQueryFile.WriteString(query)
 	} else {
 		buf := make([]byte, stat.Size())
@@ -268,8 +277,10 @@ func main(){
 					// }
 				}
 			}
+			// 'SELECT *, log_number MOD 2 = 0 FROM purrimeter_raw WHERE log_number > 1 LIMIT 10'
+			query = fmt.Sprintf(`SELECT *, log_number MOD %d = %d FROM purrimeter_raw WHERE log_number > %d LIMIT 200;`, int64(total_number_of_nodes),int64(mod - 1), int64(log_number))
 			
-			query = fmt.Sprintf(`SELECT * FROM purrimeter_raw WHERE log_number > %d LIMIT 200;`, int64(log_number))
+			// query = fmt.Sprintf(`SELECT * FROM purrimeter_raw WHERE MOD log_number %d = %d AND log_number > %d LIMIT 200;`, int64(total_number_of_nodes),int64(mod - 1), int64(log_number))
 			// Truncate and write new query
 			lastQueryFile.Truncate(0)
 			lastQueryFile.Seek(0, 0)

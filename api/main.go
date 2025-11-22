@@ -57,6 +57,10 @@ func main()  {
    if err != nil {
       panic(err)
    }
+   agentConfigs, err := db.Create_agent_configs()
+   if err != nil {
+      panic(err)
+   }
 
 
 
@@ -77,6 +81,9 @@ func main()  {
             })
             management_agent.POST("/remove", func(ctx *gin.Context) {
                management.UnRegister(ctx, sql, val)
+            })
+            management_agent.POST("/getConfig", func(ctx *gin.Context) {
+               management.GetAgentConfig(ctx, agentConfigs, val)
             })
          }
             

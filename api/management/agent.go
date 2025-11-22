@@ -107,7 +107,6 @@ func RegisterAgent( g *gin.Context, sqlite *sql.DB, valkey valkey.Client) {
 // @Produce json
 // @Success 200 {string} ok
 // @Router /agent/management/remove [post]
-
 func UnRegister(g *gin.Context, sqlite *sql.DB, valkey valkey.Client) {
 	var unregisterRequest UnRegisterAgent
 	err := g.ShouldBindBodyWithJSON(&unregisterRequest)

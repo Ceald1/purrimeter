@@ -1,6 +1,6 @@
 services:
-  alerts:
-    container_name: alerts
+  alerts1:
+    container_name: alerts1
     restart: always
     build:
       context: .
@@ -9,9 +9,28 @@ services:
       - go-network
     environment:
       - MANTICORE_URL=${MANTICORE_URL}
+      - NODE_NUMBER=${NODE_NUMBER:-1}
+      - NODE_TOTAL=${NODE_TOTAL:-2}
     volumes:
       - ./rules:/app/rules
       - ./:/app
+  alerts2:
+    container_name: alerts2
+    restart: always
+    build:
+      context: .
+      dockerfile: Dockerfile
+    networks:
+      - go-network
+    environment:
+      - MANTICORE_URL=${MANTICORE_URL}
+      - NODE_NUMBER=${NODE_NUMBER:-2}
+      - NODE_TOTAL=${NODE_TOTAL:-2}
+    volumes:
+      - ./rules:/app/rules
+      - ./:/app
+### More alerts services for scaling!!! 😄
+
 # networks:
 #   go-network:
 #     external: true

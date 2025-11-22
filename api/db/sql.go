@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -69,7 +70,71 @@ func createTables(db *sql.DB) (err error) {
 	return
 }
 
+func Create_agent_configs() (db *sql.DB, err error) {
 
+	db, err = sql.Open("sqlite3", "/db/agent_configs.db")
+	if err != nil {
+		return
+	}
+	// query := `
+	// 	CREATE TABLE IF NOT EXISTS agent_config (
+	// 	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	// 	agent_name TEXT NOT NULL UNIQUE,
+	// 	config TEXT NOT NULL,
+	// 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	// );`
+	// _, err = db.Exec(query)
+	// if err != nil {
+	// 	return
+	// }
+	query := `
+		CREATE TABLE IF NOT EXISTS agent_groups (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		group_name TEXT NOT NULL UNIQUE,
+		agents JSON NOT NULL,
+		config JSON NOT NULL,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);`
+	_, err = db.Exec(query)
+	if err != nil {
+		return
+	}
+	return
+}
+
+
+func Get_Agent_config(agentName string, db *sql.DB) (result map[string]interface{}, err error) {
+	query := `
+        SELECT config FROM agent_groups 
+        WHERE json_extract(agents, '$') LIKE ?
+    `
+	result = make(map[string]interface{})
+	err = db.QueryRow(query, agentName).Scan(&result)
+	return result, err
+}
+
+func Update_Agent_config(agentName string, db *sql.DB, config any) (err error) {
+    // Marshal the config to JSON
+    configJSON, err := json.Marshal(config)
+    if err != nil {
+        return fmt.Errorf("failed to marshal config: %v", err)
+    }
+
+    // Corrected SQL query
+    query := `
+        UPDATE agent_groups
+        SET config = ?
+        WHERE json_extract(agents, '$') LIKE ?
+    `
+
+    // Execute the update
+    _, err = db.Exec(query, string(configJSON), "%"+agentName+"%")
+    if err != nil {
+        return fmt.Errorf("failed to update agent config: %v", err)
+    }
+
+    return nil
+}
 
 
 func SQL_Init() (db *sql.DB, err error){

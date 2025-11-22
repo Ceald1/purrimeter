@@ -1,0 +1,5 @@
+name: "test name"
+groups: 
+  - "test group"
+channels:
+  - "sysmon"
