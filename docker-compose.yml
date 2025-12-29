@@ -1,5 +1,24 @@
-include:
-  - path: ./api/docker-compose.yml
-  - path: ./modules/alerts/docker-compose.yml
-  - path: ./modules/orchestra/docker-compose.yml
-  - path: ./modules/conductor/docker-compose.yml
+version: '3'
+
+services:
+  init-data:
+    image: busybox
+    command: chmod -R 777 /data
+    volumes:
+      - surrealdb-data:/data
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    container_name: surrealdb
+    restart: always
+    command: start --user ${SURREAL_ADMIN} --pass ${SURREAL_PASS} file:/data/database.db
+    ports:
+      - 8000:8000
+    volumes:
+      - surrealdb-data:/data
+    depends_on:
+      init-data:
+        condition: service_completed_successfully
+
+
+volumes:
+  surrealdb-data:

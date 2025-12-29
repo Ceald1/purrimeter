@@ -175,3 +175,6 @@ vite.config.ts.timestamp-*
 .vite/
 wiki/
 !.env
+data/
+history.txt
+purrimeter.wiki/
