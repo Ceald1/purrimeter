@@ -61,12 +61,15 @@ func main() {
   r.POST("/api/v2/agent/register", func(c *gin.Context) {
       auth.RegisterAgent(c, db)
   })
-  r.POST(`/api/v2/agent/logs`, func(c *gin.Context) {
+  r.POST(`/api/v2/agent/log`, func(c *gin.Context) {
     logging.SubmitLog(c, db)
+  })
+    r.POST(`/api/v2/agent/logs`, func(c *gin.Context) {
+    logging.SubmitLogs(c, db)
   })
 
 
-  
+
   if err := r.Run(); err != nil {
     log.Fatalf("failed to run server: %v", err)
   }

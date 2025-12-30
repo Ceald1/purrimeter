@@ -1,0 +1,8 @@
+Running 15s test @ http://localhost:8080/api/v2/agent/log
+  4 threads and 500 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    81.89ms   15.32ms 166.16ms   70.99%
+    Req/Sec     1.53k   200.30     2.10k    68.33%
+  91400 requests in 15.04s, 12.03MB read
+Requests/sec:   6076.10
+Transfer/sec:    818.85KB

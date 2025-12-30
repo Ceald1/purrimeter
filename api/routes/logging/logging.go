@@ -28,11 +28,11 @@ func SubmitLog( c *gin.Context, db *surrealdb.DB) {
 		return
 	}
 	// check if agent exists
-	err = checkAgent(db, agentClaims.Name)
-	if err != nil {
-		c.JSON(403, ErrorResponse{Error: err.Error()}) // agent no exist or error
-		return
-	}
+	// err = checkAgent(db, agentClaims.Name)
+	// if err != nil {
+	// 	c.JSON(403, ErrorResponse{Error: err.Error()}) // agent no exist or error
+	// 	return
+	// }
 
 
 	var log_data map[string]interface{}
@@ -50,7 +50,38 @@ func SubmitLog( c *gin.Context, db *surrealdb.DB) {
 
 }
 
+func SubmitLogs( c *gin.Context, db *surrealdb.DB) {
+	agentToken := c.GetHeader("Authorization")
+	agentToken = strings.Replace(agentToken, "Bearer ", "", -1)
+	agentClaims, err := crypto.VerifyToken(agentToken)
+	if err != nil {
+		c.JSON(403, ErrorResponse{Error: err.Error()}) // you fr??
+		return
+	}
+	// check if agent exists
+	// err = checkAgent(db, agentClaims.Name)
+	// if err != nil {
+	// 	c.JSON(403, ErrorResponse{Error: err.Error()}) // agent no exist or error
+	// 	return
+	// }
 
+
+	var log_data []map[string]interface{}
+	err = c.ShouldBindBodyWithJSON(&log_data)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
+		return
+	}
+	for _, l := range log_data {
+	err = submitLogToDB(db, agentClaims.Name, l)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()}) // uh oh
+			return
+		}
+	}
+	c.JSON(200, Result{Result: `ok`}) // all gud 😃
+
+}
 
 func checkAgent(db *surrealdb.DB, agentName string) (err error) {
 	err = db.Use(ctx, `agents`, `agents`)
