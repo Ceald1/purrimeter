@@ -1,0 +1,4 @@
+os: "linux"
+name: "test"
+streams:
+  - "sysmon"

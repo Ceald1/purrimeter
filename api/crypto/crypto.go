@@ -1,0 +1,53 @@
+package crypto
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"os"
+
+	"github.com/golang-jwt/jwt/v5"
+)
+
+// verifies the token and returns the `CustomClaims` struct and error
+func VerifyToken(jwtToken string) (claims *CustomClaims, err error) {
+	secret := os.Getenv("JWT_SECRET")
+	claims = &CustomClaims{} // Initialize claims pointer
+	token, err := jwt.ParseWithClaims(jwtToken, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return []byte(secret), nil // Convert to []byte
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse token: %w", err)
+	}
+
+	if claims, ok := token.Claims.(*CustomClaims); ok && token.Valid {
+		return claims, nil
+	}
+
+	return nil, fmt.Errorf("invalid token claims")
+}
+
+
+// --- cryptography and JWT tokens -----
+
+func Hash(input string) (out string) {
+	h := sha256.New()
+	h.Write([]byte(input))
+	hashed := h.Sum(nil)
+	out = hex.EncodeToString(hashed)
+	return out
+}
+
+// create a jwt token using username or name, if token is a user set to `True` if agent `False`
+func CreateToken(username string, isUser bool) (jwt_token string, err error) {
+	secret := os.Getenv("JWT_SECRET")
+	claims := CustomClaims{
+		Name: username,
+		IsUserToken: isUser,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
+}

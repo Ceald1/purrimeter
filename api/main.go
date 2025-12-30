@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/Ceald1/purrimeter/api/routes/auth"
-	// "github.com/Ceald1/purrimeter/api/routes/logging"
+	"github.com/Ceald1/purrimeter/api/routes/logging"
 	// "github.com/Ceald1/purrimeter/api/routes/management"
 	"github.com/gin-gonic/gin"
 	"github.com/surrealdb/surrealdb.go"
@@ -17,6 +17,7 @@ var (
   ctx = context.Background()
   API_ADMIN_USER string = os.Getenv("API_ADMIN")
   API_ADMIN_PASS string = os.Getenv("API_ADMIN_PASS")
+  AGENT_SECRET string = os.Getenv("AGENT_SECRET")
 )
 
 
@@ -49,28 +50,23 @@ func main() {
 			panic(err)
 		}
 	}(token) // delete token after function ends
-  err = auth.INIT(db, API_ADMIN_USER, API_ADMIN_USER)
+  err = auth.INIT(db, API_ADMIN_USER, API_ADMIN_USER, AGENT_SECRET)
   if err != nil {
     panic(err)
   }
 
 
 
-
-  r.POST("/api/v2/authAgent", func(c *gin.Context) {
-      auth.LoginAgent(c, db)
+  // agent endpoints
+  r.POST("/api/v2/agent/register", func(c *gin.Context) {
+      auth.RegisterAgent(c, db)
+  })
+  r.POST(`/api/v2/agent/logs`, func(c *gin.Context) {
+    logging.SubmitLog(c, db)
   })
 
-//   // Define a simple GET endpoint
-//   r.GET("/ping", func(c *gin.Context) {
-//     // Return JSON response
-//     c.JSON(http.StatusOK, gin.H{
-//       "message": "pong",
-//     })
-//   })
 
-//   // Start server on port 8080 (default)
-//   // Server will listen on 0.0.0.0:8080 (localhost:8080 on Windows)
+  
   if err := r.Run(); err != nil {
     log.Fatalf("failed to run server: %v", err)
   }
