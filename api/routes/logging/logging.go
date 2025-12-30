@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	surrealdb "github.com/surrealdb/surrealdb.go"
 	"github.com/surrealdb/surrealdb.go/pkg/models"
+	"time"
 )
 
 var (
@@ -106,18 +107,34 @@ func submitLogToDB(db *surrealdb.DB, agentName string, log map[string]interface{
 	if err != nil {
 		return err
 	}
+	var retries = 0
+	var retry_limit = 10
 	log_name := crypto.Hash(fmt.Sprintf("%v", log))
 	recordID := models.NewRecordID(`agentLogs`, log_name)
 	log_data := AgentLog{
 		Name: log_name,
 		LogData: log,
 	}
+	DBSelect:
 	existing_log, err := surrealdb.Select[AgentLog](ctx, db, recordID)
 	if err != nil {
+		if retries < retry_limit{
+			retries = retries + 1
+			time.Sleep(time.Millisecond * 1) // change as needed
+			goto DBSelect
+		}
 		return err
 	}
+	retries = 0
+	retry_limit = 10
+	DB:
 	if existing_log == nil {
 		_, err = surrealdb.Create[AgentLog](ctx, db, recordID, log_data)
+		if retries < retry_limit{
+			retries = retries + 1
+			time.Sleep(time.Millisecond * 1) // change as needed
+			goto DB
+		}
 		return err
 	}
 	return nil // don't return anything if already exists just continue.

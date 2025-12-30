@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Ceald1/purrimeter/api/crypto"
 
@@ -21,6 +22,8 @@ var ctx = context.Background()
 
 // register a new agent
 func RegisterAgent(c *gin.Context, db *surrealdb.DB) {
+	var retries = 0
+	var retry_limit = 10
 	var agent_secret = c.GetHeader("Authorization") // secret key for registering new agents
 	agent_secret = strings.Replace(agent_secret, "Bearer ", "", -1)
 
@@ -48,10 +51,15 @@ func RegisterAgent(c *gin.Context, db *surrealdb.DB) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()}) // dumbass didn't read the YAML configuration docs
 		return
 	}
-
+	DB:
 	// update database
 	err = CreateOrUpdateAgent(db, agentRegister.Name, b64Decoded)
 	if err != nil {
+		if retries < retry_limit {
+			retries = retries + 1
+			time.Sleep(time.Millisecond * 1) // change as needed
+			goto DB
+		}
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()}) // uh oh
 		return
 	}
