@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"os"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -40,6 +41,13 @@ func Hash(input string) (out string) {
 	out = hex.EncodeToString(hashed)
 	return out
 }
+func HashToNumber(input string) *big.Int {
+    // Generate SHA-256 hash
+    hash := sha256.Sum256([]byte(input))
+    
+    // Convert to big.Int
+    return new(big.Int).SetBytes(hash[:])
+}
 
 // create a jwt token using username or name, if token is a user set to `True` if agent `False`
 func CreateToken(username string, isUser bool) (jwt_token string, err error) {
@@ -51,3 +59,4 @@ func CreateToken(username string, isUser bool) (jwt_token string, err error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(secret))
 }
+

@@ -7,12 +7,13 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Ceald1/purrimeter/api/crypto"
 	"github.com/gin-gonic/gin"
 	surrealdb "github.com/surrealdb/surrealdb.go"
 	"github.com/surrealdb/surrealdb.go/pkg/models"
-	"time"
+	// "time"
 )
 
 var (
@@ -28,12 +29,6 @@ func SubmitLog( c *gin.Context, db *surrealdb.DB) {
 		c.JSON(403, ErrorResponse{Error: err.Error()}) // you fr??
 		return
 	}
-	// check if agent exists
-	// err = checkAgent(db, agentClaims.Name)
-	// if err != nil {
-	// 	c.JSON(403, ErrorResponse{Error: err.Error()}) // agent no exist or error
-	// 	return
-	// }
 
 
 	var log_data map[string]interface{}
@@ -59,12 +54,6 @@ func SubmitLogs( c *gin.Context, db *surrealdb.DB) {
 		c.JSON(403, ErrorResponse{Error: err.Error()}) // you fr??
 		return
 	}
-	// check if agent exists
-	// err = checkAgent(db, agentClaims.Name)
-	// if err != nil {
-	// 	c.JSON(403, ErrorResponse{Error: err.Error()}) // agent no exist or error
-	// 	return
-	// }
 
 
 	var log_data []map[string]interface{}
@@ -102,40 +91,39 @@ func checkAgent(db *surrealdb.DB, agentName string) (err error) {
 
 
 
-func submitLogToDB(db *surrealdb.DB, agentName string, log map[string]interface{}) (err error){
-	err = db.Use(ctx, `agentLogs`, `agentLogs`)
-	if err != nil {
-		return err
-	}
+func submitLogToDB(db *surrealdb.DB, agentName string, log map[string]interface{}) error {
+    err := db.Use(ctx, `agentLogs`, `agentLogs`)
+    if err != nil {
+        return err
+    }
 	var retries = 0
-	var retry_limit = 10
-	log_name := crypto.Hash(fmt.Sprintf("%v", log))
-	recordID := models.NewRecordID(`agentLogs`, log_name)
-	log_data := AgentLog{
-		Name: log_name,
-		LogData: log,
-	}
-	DBSelect:
-	existing_log, err := surrealdb.Select[AgentLog](ctx, db, recordID)
-	if err != nil {
-		if retries < retry_limit{
-			retries = retries + 1
-			time.Sleep(time.Millisecond * 1) // change as needed
-			goto DBSelect
-		}
-		return err
-	}
-	retries = 0
-	retry_limit = 10
+	var retry_limit = 20
+	
+    log_name := crypto.Hash(fmt.Sprintf("%v", log))
+    recordID := models.NewRecordID(`agentLogs`, log_name)
+    log_data := AgentLog{
+        Name:    log_name,
+        LogData: log,
+		Number: crypto.HashToNumber(log_name).Bytes(), // needs to be byte array to prevent overflow
+		
+    }
+    
+    // Just try to create - handle duplicate error if it happens and retry.
 	DB:
-	if existing_log == nil {
-		_, err = surrealdb.Create[AgentLog](ctx, db, recordID, log_data)
-		if retries < retry_limit{
-			retries = retries + 1
-			time.Sleep(time.Millisecond * 1) // change as needed
-			goto DB
+    _, err = surrealdb.Create[AgentLog](ctx, db, recordID, log_data)
+    if err != nil {
+        // If already exists, that's fine - log was already recorded
+        if strings.Contains(err.Error(), `already exists`) {
+            return nil
+        }else{
+			if retries < retry_limit{
+				retries = retries + 1
+				time.Sleep(time.Millisecond * time.Duration(retries))
+				goto DB
+			}
 		}
-		return err
-	}
-	return nil // don't return anything if already exists just continue.
+        return err
+    }
+    
+    return nil
 }

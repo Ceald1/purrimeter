@@ -27,7 +27,8 @@ var (
 func main() {
   // Create a Gin router with default middleware (logger and recovery)
   r := gin.Default()
-  db, err := surrealdb.FromEndpointURLString(ctx, "ws://127.0.0.1:8000") // change to `surrealdb` in prod
+  gin.SetMode(gin.ReleaseMode)
+  db, err := surrealdb.FromEndpointURLString(ctx, "ws://127.0.0.1:8000") // change to `surrealdb` in prod for kubernetes
   if err != nil {
     panic(err)
   }
@@ -54,6 +55,9 @@ func main() {
   if err != nil {
     panic(err)
   }
+  r.GET("/health", func(c *gin.Context) {
+    c.JSON(200, gin.H{"status": "ok"})
+  })
 
 
 
@@ -67,6 +71,7 @@ func main() {
     r.POST(`/api/v2/agent/logs`, func(c *gin.Context) {
     logging.SubmitLogs(c, db)
   })
+
 
 
 
