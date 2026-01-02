@@ -187,8 +187,10 @@ func main(){
 		json.Unmarshal(jsData, &result)
 		resultID := result.Number
 		if resultID % int64(NUM_OF_ALERT_SERVICES) == (int64(ALERT_SERVICE_NUMBER) - 1) {
-			fmt.Println(resultID)
 			alert(rule_set, result, db)
+			lastLog = result
+			query = fmt.Sprintf(`SELECT * FROM %s>.. LIMIT 200 START 1`, lastLog.ID)
+			lastQueryFile.WriteString(query)
 		}
 
 
@@ -261,7 +263,7 @@ func alert(rule_set []Rule, log AgentLog, db *surrealdb.DB) {
 
 		// check if equals
 		for _, equal := range equals {
-			if equal == field_value {
+			if fmt.Sprintf("%v",equal) == fmt.Sprintf("%v",field_value) {
 				var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
 				err = SendAlert(rule_formatted, entryID, db)
 				if err != nil {
@@ -273,7 +275,7 @@ func alert(rule_set []Rule, log AgentLog, db *surrealdb.DB) {
 
 		// check if not equals
 		for _, notEqual := range notEquals {
-			if notEqual != field_value {
+			if fmt.Sprintf("%v", notEqual) != fmt.Sprintf("%v", field_value ){
 				var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
 				err = SendAlert(rule_formatted, entryID, db)
 				if err != nil {
@@ -320,6 +322,7 @@ func SendAlert(alertData map[string]interface{}, originalLogID *models.RecordID,
 	var alert Alert
 	var retries = 0
 	var retry_limit = 20
+	alertData["referencedRecord"] = originalLogID.ID
 	db.Use(ctx, `alerts`, `alerts`)
 	recordName := crypto.Hash(fmt.Sprintf("%v", alertData))
 	alert = Alert{

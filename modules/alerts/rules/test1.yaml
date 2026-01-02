@@ -28,4 +28,15 @@ rules:
     id: "321efjdslnvsnalvnalanla" # replace with uuid or some shit
     groups:
       - "test"
-
+  - rule:
+    streams:
+      - "test"
+    conditions:
+      # equals:
+      #   - "test"
+      contains:
+        - "test"
+      field: "test"
+    level: 50
+    description: "test alert"
+    id: "aekv5ldasvksnsnsmdn2amvsanvalewja1ew1"
