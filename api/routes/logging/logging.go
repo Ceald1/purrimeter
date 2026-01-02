@@ -94,8 +94,9 @@ func checkAgent(db *surrealdb.DB, agentName string) (err error) {
 
 func Async(db *surrealdb.DB) {
 	for {
-	for _, log := range LOGS_TO_COMMIT {
-			err := submitLogToDB(db, log.AgentName, log.LogData)
+		for len(LOGS_TO_COMMIT) > 0 {
+			l := LOGS_TO_COMMIT[0]
+			err := submitLogToDB(db, l.AgentName, l.LogData)
 			if err != nil {
 				fmt.Println(err.Error())
 			}
