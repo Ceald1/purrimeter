@@ -16,7 +16,10 @@ type AgentLog struct { // goes into agentLogs database and namespace
 // --- unique API typings ----
 
 
-
+type LogCommit struct {
+	AgentName string
+	LogData map[string]interface{}
+}
 
 // --- Default API typings ---
 type ErrorResponse struct {

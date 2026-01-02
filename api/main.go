@@ -28,7 +28,7 @@ func main() {
   // Create a Gin router with default middleware (logger and recovery)
   r := gin.Default()
   gin.SetMode(gin.ReleaseMode)
-  db, err := surrealdb.FromEndpointURLString(ctx, "ws://127.0.0.1:8000") // change to `surrealdb` in prod for kubernetes
+  db, err := surrealdb.FromEndpointURLString(ctx, "ws://surrealdb:8000") // change to `surrealdb` in prod for kubernetes
   if err != nil {
     panic(err)
   }
@@ -45,7 +45,6 @@ func main() {
   }
 
 
-
   defer func(token string) {
 		if err := db.Invalidate(ctx); err != nil {
 			panic(err)
@@ -55,6 +54,7 @@ func main() {
   if err != nil {
     panic(err)
   }
+  go logging.Async(db)
   r.GET("/health", func(c *gin.Context) {
     c.JSON(200, gin.H{"status": "ok"})
   })

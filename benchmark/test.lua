@@ -4,7 +4,7 @@ local thread_id = 0
 
 function setup(thread)
 	-- Give each thread a unique ID
-	thread_id = thread.id or math.random(1, 10000)
+	thread_id = thread.id or math.random(1, 100000000)
 end
 
 request = function()

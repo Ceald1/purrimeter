@@ -18,6 +18,7 @@ import (
 
 var (
 	ctx = context.Background()
+	LOGS_TO_COMMIT []LogCommit
 )
 
 
@@ -37,11 +38,17 @@ func SubmitLog( c *gin.Context, db *surrealdb.DB) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
 		return
 	}
-	err = submitLogToDB(db, agentClaims.Name, log_data)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()}) // uh oh
-		return
+	log := LogCommit{
+		AgentName: agentClaims.Name,
+		LogData: log_data,
 	}
+	LOGS_TO_COMMIT = append(LOGS_TO_COMMIT, log)
+	// err = submitLogToDB(db, agentClaims.Name, log_data)
+	// if err != nil {
+	// 	c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()}) // uh oh
+	// 	return
+	// }
+	// go Async(db)
 	c.JSON(200, Result{Result: `ok`}) // all gud 😃
 
 }
@@ -63,11 +70,17 @@ func SubmitLogs( c *gin.Context, db *surrealdb.DB) {
 		return
 	}
 	for _, l := range log_data {
-	err = submitLogToDB(db, agentClaims.Name, l)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()}) // uh oh
-			return
+		log := LogCommit{
+			AgentName: agentClaims.Name,
+			LogData: l,
 		}
+		LOGS_TO_COMMIT = append(LOGS_TO_COMMIT, log)
+	// go Async(db)
+	// err = submitLogToDB(db, agentClaims.Name, l)
+	// 	if err != nil {
+	// 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()}) // uh oh
+	// 		return
+	// 	}
 	}
 	c.JSON(200, Result{Result: `ok`}) // all gud 😃
 
@@ -89,6 +102,18 @@ func checkAgent(db *surrealdb.DB, agentName string) (err error) {
 	return nil
 }
 
+func Async(db *surrealdb.DB) {
+	for {
+	for _, log := range LOGS_TO_COMMIT {
+			err := submitLogToDB(db, log.AgentName, log.LogData)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+		}
+		LOGS_TO_COMMIT = make([]LogCommit, 0)
+		time.Sleep(time.Second * 5)
+	}
+}
 
 
 func submitLogToDB(db *surrealdb.DB, agentName string, log map[string]interface{}) error {

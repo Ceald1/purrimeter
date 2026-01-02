@@ -94,7 +94,7 @@ services:
     image: surrealdb/surrealdb:latest
     container_name: surrealdb
     restart: always
-    command: start --user ${SURREAL_ADMIN} --pass ${SURREAL_PASS} file:/data/database.db
+    command: start --user ${SURREAL_ADMIN} --pass ${SURREAL_PASS} rocksdb://data/database.db
     ports:
       - 127.0.0.1:8000:8000
     volumes:
@@ -120,9 +120,9 @@ services:
     restart: always
     ports:
       - "8080:8080"
-    # networks:
-    #   - purrimeter-internal
-    network_mode: host
+    networks:
+      - purrimeter-internal
+    # network_mode: host
     environment:
       - API_ADMIN=${API_ADMIN}
       - SURREAL_ADMIN=${SURREAL_ADMIN}

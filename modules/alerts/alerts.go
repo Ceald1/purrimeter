@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -138,13 +139,14 @@ func main(){
 			panic(err)
 		}
 	}
+	
+	var lastLog AgentLog
+	var realtimeUpdate bool = false
+	START_AGAIN:
 	err = db.Use(ctx, `agentLogs`, `agentLogs`) // test agentLogs
 	if err != nil {
 		panic(err)
 	}
-	var lastLog AgentLog
-	var realtimeUpdate bool = false
-	START_AGAIN:
 	lastQueryFile, _ := os.OpenFile(queryFile, os.O_RDWR|os.O_CREATE, 0644)
 	lastQueryFile.WriteString(query)
 	entries, err := surrealdb.Query[[]AgentLog](ctx, db, query, map[string]any{})
@@ -158,122 +160,123 @@ func main(){
 		}
 		lastLog = entry.Result[len(entry.Result)-1]
 		for _, log := range entry.Result {
-			for _, rule := range rule_set{
-				field := rule.Conditions.Field
-				description := rule.Description
-				id := rule.ID
-				level := rule.Level
-				groups := rule.Groups
-				streams := rule.Streams
-				entryID := log.ID
-				field_value := FindField(log, field)
-				if field_value == nil {
-					continue
-				}
-				contains := rule.Conditions.Contains
-				notContains := rule.Conditions.NotContains
-				equals := rule.Conditions.Equals
-				notEquals := rule.Conditions.NotEquals
-				lessThan := rule.Conditions.LessThan
-				greaterThan := rule.Conditions.GreaterThan
+			alert(rule_set, log, db)
+			// for _, rule := range rule_set{
+			// 	field := rule.Conditions.Field
+			// 	description := rule.Description
+			// 	id := rule.ID
+			// 	level := rule.Level
+			// 	groups := rule.Groups
+			// 	streams := rule.Streams
+			// 	entryID := log.ID
+			// 	field_value := FindField(log, field)
+			// 	if field_value == nil {
+			// 		continue
+			// 	}
+			// 	contains := rule.Conditions.Contains
+			// 	notContains := rule.Conditions.NotContains
+			// 	equals := rule.Conditions.Equals
+			// 	notEquals := rule.Conditions.NotEquals
+			// 	lessThan := rule.Conditions.LessThan
+			// 	greaterThan := rule.Conditions.GreaterThan
 
-				// contains
-				for _, contain := range contains {
-					var match bool = false
-					isRegex := IsValidRegex(contain)
-					if isRegex == true {
-						expression, _ := regexp.Compile(contain)
-						match = expression.MatchString(field_value.(string)) // trusting string
-						}else{
-						match = strings.Contains(field_value.(string), contain)
-					}
-					if match == true {
-							// send alert to DB and reference the ID
-							var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
-							err = SendAlert(rule_formatted, entryID, db)
-							if err != nil {
-								panic(err)
-							}
-							goto StopCheck
-						}
+			// 	// contains
+			// 	for _, contain := range contains {
+			// 		var match bool = false
+			// 		isRegex := IsValidRegex(contain)
+			// 		if isRegex == true {
+			// 			expression, _ := regexp.Compile(contain)
+			// 			match = expression.MatchString(field_value.(string)) // trusting string
+			// 			}else{
+			// 			match = strings.Contains(field_value.(string), contain)
+			// 		}
+			// 		if match == true {
+			// 				// send alert to DB and reference the ID
+			// 				var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+			// 				err = SendAlert(rule_formatted, entryID, db)
+			// 				if err != nil {
+			// 					panic(err)
+			// 				}
+			// 				goto StopCheck
+			// 			}
 					
-				}
+			// 	}
 
-				// not contains
-				for _, notContain := range notContains {
-					var match bool = false
-					isRegex := IsValidRegex(notContain)
-					if isRegex == true {
-						expression, _ := regexp.Compile(notContain)
-						match = !expression.MatchString(field_value.(string))
-					}else{
-						match = !strings.Contains(field_value.(string), notContain)
-					}
-					if match == true {
-							// send alert to DB and reference the ID
-							var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
-							err = SendAlert(rule_formatted, entryID, db)
-							if err != nil {
-								panic(err)
-							}
-							goto StopCheck
-						}
-				}
+			// 	// not contains
+			// 	for _, notContain := range notContains {
+			// 		var match bool = false
+			// 		isRegex := IsValidRegex(notContain)
+			// 		if isRegex == true {
+			// 			expression, _ := regexp.Compile(notContain)
+			// 			match = !expression.MatchString(field_value.(string))
+			// 		}else{
+			// 			match = !strings.Contains(field_value.(string), notContain)
+			// 		}
+			// 		if match == true {
+			// 				// send alert to DB and reference the ID
+			// 				var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+			// 				err = SendAlert(rule_formatted, entryID, db)
+			// 				if err != nil {
+			// 					panic(err)
+			// 				}
+			// 				goto StopCheck
+			// 			}
+			// 	}
 
-				// check if equals
-				for _, equal := range equals {
-					if equal == field_value {
-						var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
-						err = SendAlert(rule_formatted, entryID, db)
-						if err != nil {
-							panic(err)
-						}
-						goto StopCheck
-					}
-				}
+			// 	// check if equals
+			// 	for _, equal := range equals {
+			// 		if equal == field_value {
+			// 			var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+			// 			err = SendAlert(rule_formatted, entryID, db)
+			// 			if err != nil {
+			// 				panic(err)
+			// 			}
+			// 			goto StopCheck
+			// 		}
+			// 	}
 
-				// check if not equals
-				for _, notEqual := range notEquals {
-					if notEqual != field_value {
-						var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
-						err = SendAlert(rule_formatted, entryID, db)
-						if err != nil {
-							panic(err)
-						}
-						goto StopCheck
-					}
-				}
+			// 	// check if not equals
+			// 	for _, notEqual := range notEquals {
+			// 		if notEqual != field_value {
+			// 			var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+			// 			err = SendAlert(rule_formatted, entryID, db)
+			// 			if err != nil {
+			// 				panic(err)
+			// 			}
+			// 			goto StopCheck
+			// 		}
+			// 	}
 
-				// less than
-				for _, l := range lessThan {
-					if l.(int) < field_value.(int) {
-						var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
-						err = SendAlert(rule_formatted, entryID, db)
-						if err != nil {
-							panic(err)
-						}
-						goto StopCheck
-					}
-				}
+			// 	// less than
+			// 	for _, l := range lessThan {
+			// 		if l.(int) < field_value.(int) {
+			// 			var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+			// 			err = SendAlert(rule_formatted, entryID, db)
+			// 			if err != nil {
+			// 				panic(err)
+			// 			}
+			// 			goto StopCheck
+			// 		}
+			// 	}
 
-				// greater than
-				for _, g := range greaterThan {
-					if g.(int) > field_value.(int) {
-						var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
-						err = SendAlert(rule_formatted, entryID, db)
-						if err != nil {
-							panic(err)
-						}
-						goto StopCheck
-					}
-				}
+			// 	// greater than
+			// 	for _, g := range greaterThan {
+			// 		if g.(int) > field_value.(int) {
+			// 			var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+			// 			err = SendAlert(rule_formatted, entryID, db)
+			// 			if err != nil {
+			// 				panic(err)
+			// 			}
+			// 			goto StopCheck
+			// 		}
+			// 	}
 
 
-				// stop checking
-					StopCheck:
-						continue
+			// 	// stop checking
+			// 		StopCheck:
+			// 			continue
 
-			}
+			// }
 		}
 	}
 	// repeat and start again.
@@ -286,14 +289,154 @@ func main(){
 		goto START_AGAIN
 	}
 	fmt.Println("starting realtime updates...")
+	liveDB, err := surrealdb.Live(ctx, db, `agentLogs`, false)
+	notifications, err := db.LiveNotifications(liveDB.String())
+
+	if err != nil {
+		panic(err)
+	}
+	// live stuff goes here.
+	for notification := range notifications {
+		resultAny := notification.Result.(map[string]any)
+		var result AgentLog
+		jsData, _ := json.Marshal(resultAny)
+		json.Unmarshal(jsData, &result)
+		resultID := result.Number
+		if resultID % int64(NUM_OF_ALERT_SERVICES) == (int64(ALERT_SERVICE_NUMBER) - 1) {
+			fmt.Println(resultID)
+			alert(rule_set, result, db)
+		}
+
+
+	}
 }
 
+func alert(rule_set []Rule, log AgentLog, db *surrealdb.DB) {
+	var err error
+	for _, rule := range rule_set{
+		field := rule.Conditions.Field
+		description := rule.Description
+		id := rule.ID
+		level := rule.Level
+		groups := rule.Groups
+		streams := rule.Streams
+		entryID := log.ID
+		field_value := FindField(log, field)
+		if field_value == nil {
+			continue
+		}
+		contains := rule.Conditions.Contains
+		notContains := rule.Conditions.NotContains
+		equals := rule.Conditions.Equals
+		notEquals := rule.Conditions.NotEquals
+		lessThan := rule.Conditions.LessThan
+		greaterThan := rule.Conditions.GreaterThan
+
+		// contains
+		for _, contain := range contains {
+			var match bool = false
+			isRegex := IsValidRegex(contain)
+			if isRegex == true {
+				expression, _ := regexp.Compile(contain)
+				match = expression.MatchString(field_value.(string)) // trusting string
+				}else{
+				match = strings.Contains(field_value.(string), contain)
+			}
+			if match == true {
+					// send alert to DB and reference the ID
+					var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+					err = SendAlert(rule_formatted, entryID, db)
+					if err != nil {
+						panic(err)
+					}
+					goto StopCheck
+				}
+			
+		}
+
+		// not contains
+		for _, notContain := range notContains {
+			var match bool = false
+			isRegex := IsValidRegex(notContain)
+			if isRegex == true {
+				expression, _ := regexp.Compile(notContain)
+				match = !expression.MatchString(field_value.(string))
+			}else{
+				match = !strings.Contains(field_value.(string), notContain)
+			}
+			if match == true {
+					// send alert to DB and reference the ID
+					var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+					err = SendAlert(rule_formatted, entryID, db)
+					if err != nil {
+						panic(err)
+					}
+					goto StopCheck
+				}
+		}
+
+		// check if equals
+		for _, equal := range equals {
+			if equal == field_value {
+				var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+				err = SendAlert(rule_formatted, entryID, db)
+				if err != nil {
+					panic(err)
+				}
+				goto StopCheck
+			}
+		}
+
+		// check if not equals
+		for _, notEqual := range notEquals {
+			if notEqual != field_value {
+				var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+				err = SendAlert(rule_formatted, entryID, db)
+				if err != nil {
+					panic(err)
+				}
+				goto StopCheck
+			}
+		}
+
+		// less than
+		for _, l := range lessThan {
+			if l.(int) < field_value.(int) {
+				var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+				err = SendAlert(rule_formatted, entryID, db)
+				if err != nil {
+					panic(err)
+				}
+				goto StopCheck
+			}
+		}
+
+		// greater than
+		for _, g := range greaterThan {
+			if g.(int) > field_value.(int) {
+				var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+				err = SendAlert(rule_formatted, entryID, db)
+				if err != nil {
+					panic(err)
+				}
+				goto StopCheck
+			}
+		}
+
+
+		// stop checking
+			StopCheck:
+				return
+
+	}
+}
 
 // send alert to DB directly and reference the original log id
 func SendAlert(alertData map[string]interface{}, originalLogID *models.RecordID, db *surrealdb.DB) (err error) {
 	var alert Alert
 	var retries = 0
 	var retry_limit = 20
+	db.Use(ctx, `alerts`, `alerts`)
 	recordName := crypto.Hash(fmt.Sprintf("%v", alertData))
 	alert = Alert{
 		Name: recordName,

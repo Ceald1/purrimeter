@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.25-alpine AS builder
+FROM golang:1.25.5-trixie AS builder
 
 WORKDIR /app
 
@@ -16,7 +16,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
 # Runtime stage
 FROM alpine:latest
 
-RUN apk --no-cache add ca-certificates
+# RUN apt install -y ca-certificates
 
 WORKDIR /root/
 
