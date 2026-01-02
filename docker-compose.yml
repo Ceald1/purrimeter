@@ -128,8 +128,6 @@ services:
       - SURREAL_ADMIN=${SURREAL_ADMIN}
       - SURREAL_PASS=${SURREAL_PASS}
       - API_ADMIN_PASS=${API_ADMIN_PASS}
-      - LOGGER_USER=${LOGGER_USER}
-      - LOGGER_PASS=${LOGGER_PASS}
       - JWT_SECRET=${JWT_SECRET}
       - AGENT_SECRET=${AGENT_SECRET}
     depends_on:
@@ -166,6 +164,46 @@ services:
     networks:
       - purrimeter-internal
 
+  alerts1:
+    build:
+      context: ./modules/alerts
+      dockerfile: Dockerfile
+    restart: always
+    networks:
+      - purrimeter-internal
+    environment:
+      - SURREAL_ADMIN=${SURREAL_ADMIN}
+      - SURREAL_PASS=${SURREAL_PASS}
+      - LOGGER_USER=${LOGGER_USER}
+      - LOGGER_PASS=${LOGGER_PASS}
+      - NUM_OF_ALERT_SERVICES=${NUM_OF_ALERT_SERVICES}
+      - ALERT_SERVICE_NUMBER=1
+    volumes:
+      - ./modules/alerts/rules:/app/rules
+      - ./modules/alerts:/app
+    depends_on:
+      surrealdb:
+        condition: service_started
+  alerts2:
+    build:
+      context: ./modules/alerts
+      dockerfile: Dockerfile
+    restart: always
+    networks:
+      - purrimeter-internal
+    environment:
+      # - SURREAL_ADMIN=${SURREAL_ADMIN}
+      # - SURREAL_PASS=${SURREAL_PASS}
+      - LOGGER_USER=${LOGGER_USER}
+      - LOGGER_PASS=${LOGGER_PASS}
+      - NUM_OF_ALERT_SERVICES=${NUM_OF_ALERT_SERVICES}
+      - ALERT_SERVICE_NUMBER=2
+    volumes:
+      - ./modules/alerts/rules:/app/rules
+      - ./modules/alerts:/app
+    depends_on:
+      surrealdb:
+        condition: service_started
 networks:
   purrimeter-internal:
     driver: bridge

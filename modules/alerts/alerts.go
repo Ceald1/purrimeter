@@ -27,6 +27,7 @@ var (
 	NUM_OF_ALERT_SERVICES, _ = strconv.Atoi(os.Getenv("NUM_OF_ALERT_SERVICES")) // for clustering alerts for scaling purposes
 	ALERT_SERVICE_NUMBER, _ = strconv.Atoi(os.Getenv("ALERT_SERVICE_NUMBER")) // for clustering alerts for scaling purposes
 	query string
+	SURREAL_HOST = "surrealdb" // change as needed.
 
 )
 
@@ -77,7 +78,7 @@ func get_last_query(filename string) (query string) {
 
 
 func grabRules() (rules []Rule, err error) {
-	var path string = "./rules"
+	var path string = "/app/rules"
 	files, err := os.ReadDir(path)
     if err != nil {
         err = fmt.Errorf("Error reading directory: %s", err)
@@ -103,21 +104,29 @@ func grabRules() (rules []Rule, err error) {
 
 
 func main(){
-	queryFile := fmt.Sprintf(`alerts_%d.sql`, ALERT_SERVICE_NUMBER)
+	queryFile := fmt.Sprintf(`/app/alerts_%d.sql`, ALERT_SERVICE_NUMBER)
 	rule_set, err := grabRules()
 	if err != nil {
 		panic(err)
 	}
 	query = get_last_query(queryFile)
 	// basic crap that needs to run when starting.
-	db, err := surrealdb.FromEndpointURLString(ctx, "ws://127.0.0.1:8000") // change to `surrealdb` in prod
+	db, err := surrealdb.FromEndpointURLString(ctx, fmt.Sprintf("ws://%s:8000", SURREAL_HOST)) // change to `surrealdb` in prod
 	if err != nil {
 		panic(err)
 	}
-	authData := &surrealdb.Auth{
-		Username: SURREAL_ADMIN,
-		Password: SURREAL_PASS,
-	} // login data
+	var authData *surrealdb.Auth
+	if SURREAL_ADMIN != "" && SURREAL_PASS != ""{
+		authData = &surrealdb.Auth{
+			Username: SURREAL_ADMIN,
+			Password: SURREAL_PASS,
+		} // login data
+	}else{
+		authData = &surrealdb.Auth{
+			Username: LOGGER_USER,
+			Password: LOGGER_PASS,
+		}
+	}
 	token, err := db.SignIn(ctx, authData) // sign in
 		if err != nil {
 			panic(err)
