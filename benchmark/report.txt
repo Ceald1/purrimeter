@@ -1,8 +1,8 @@
 Running 15s test @ http://127.0.0.1:8080/api/v2/agent/log
   8 threads and 1000 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency    80.65ms  179.41ms   1.61s    94.46%
-    Req/Sec     3.38k     1.64k    7.90k    69.52%
-  403939 requests in 15.10s, 53.16MB read
-Requests/sec:  26754.37
-Transfer/sec:      3.52MB
+    Latency    51.12ms   63.40ms 739.04ms   89.54%
+    Req/Sec     3.43k     1.31k    7.74k    72.33%
+  408136 requests in 15.10s, 53.71MB read
+Requests/sec:  27035.50
+Transfer/sec:      3.56MB

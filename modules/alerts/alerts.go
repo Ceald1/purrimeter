@@ -190,6 +190,7 @@ func main(){
 			alert(rule_set, result, db)
 			lastLog = result
 			query = fmt.Sprintf(`SELECT * FROM %s>.. LIMIT 200 START 1`, lastLog.ID)
+			lastQueryFile, _ := os.OpenFile(queryFile, os.O_RDWR|os.O_CREATE, 0644)
 			lastQueryFile.WriteString(query)
 		}
 
