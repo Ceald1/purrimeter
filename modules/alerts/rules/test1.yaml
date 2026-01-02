@@ -1,0 +1,31 @@
+rules:
+  - rule:
+    streams:
+      - "syslog"
+    conditions:
+      contains:
+        - "^.*sudo.*$" # only use regex for contains
+      equals:
+        - "sudo" # only strings for equals or whatever
+      field: "cmdLine"
+    level: 50
+    description: "sudo ran"
+    id: "21efjdslnvsnalvnalanla" # replace with uuid or some shit
+    groups: 
+      - "test"
+
+  - rule:
+    streams:
+      - "syslog"
+    conditions:
+      contains:
+        - "^.*whoami.*$" # only use regex for contains
+      equals:
+        - "whoami" # only strings for equals or whatever
+      field: "cmdLine"
+    level: 50
+    description: "whoami ran"
+    id: "321efjdslnvsnalvnalanla" # replace with uuid or some shit
+    groups:
+      - "test"
+

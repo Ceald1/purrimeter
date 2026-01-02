@@ -104,7 +104,7 @@ func submitLogToDB(db *surrealdb.DB, agentName string, log map[string]interface{
     log_data := AgentLog{
         Name:    log_name,
         LogData: log,
-		Number: crypto.HashToNumber(log_name).Bytes(), // needs to be byte array to prevent overflow
+		Number: crypto.HashToNumber(log_name).Int64(), // needs to be byte array to prevent overflow
 		
     }
     

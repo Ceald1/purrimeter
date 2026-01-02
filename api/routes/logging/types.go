@@ -9,7 +9,7 @@ type AgentLog struct { // goes into agentLogs database and namespace
 	ID      	*models.RecordID `json:"id,omitempty"`
 	Name    	string `json:"name"` // unique hash of log (this prevents duplicates)
 	LogData		map[string]interface{} `json:"log_data"` // log data
-	Number      []byte `json:"Number"` // hash unique number (for alerts)
+	Number      int64 `json:"log_number"` // hash unique number (for alerts)
 
 }
 
