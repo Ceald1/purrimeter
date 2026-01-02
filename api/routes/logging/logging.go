@@ -43,12 +43,7 @@ func SubmitLog( c *gin.Context, db *surrealdb.DB) {
 		LogData: log_data,
 	}
 	LOGS_TO_COMMIT = append(LOGS_TO_COMMIT, log)
-	// err = submitLogToDB(db, agentClaims.Name, log_data)
-	// if err != nil {
-	// 	c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()}) // uh oh
-	// 	return
-	// }
-	// go Async(db)
+
 	c.JSON(200, Result{Result: `ok`}) // all gud 😃
 
 }
@@ -75,12 +70,7 @@ func SubmitLogs( c *gin.Context, db *surrealdb.DB) {
 			LogData: l,
 		}
 		LOGS_TO_COMMIT = append(LOGS_TO_COMMIT, log)
-	// go Async(db)
-	// err = submitLogToDB(db, agentClaims.Name, l)
-	// 	if err != nil {
-	// 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()}) // uh oh
-	// 		return
-	// 	}
+
 	}
 	c.JSON(200, Result{Result: `ok`}) // all gud 😃
 
