@@ -3,7 +3,7 @@ module github.com/Ceald1/purrimeter/modules/enrichment
 go 1.25.5
 
 require (
-	github.com/Ceald1/purrimeter/api v0.0.0-20260103001902-cd78b4818a7f
+	github.com/Ceald1/purrimeter/api v0.0.0-20260103090613-4a319271bd40
 	github.com/gin-gonic/gin v1.11.0
 	github.com/goccy/go-yaml v1.19.1
 	github.com/surrealdb/surrealdb.go v1.0.0
