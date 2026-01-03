@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/big"
-	"os"
 
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -49,8 +48,7 @@ func HashToNumber(input string) *big.Int {
 }
 
 // create a jwt token using username or name, if token is a user set to `True` if agent `False`
-func CreateToken(username string, isUser bool) (jwt_token string, err error) {
-	secret := os.Getenv("JWT_SECRET")
+func CreateToken(username string, isUser bool, secret string) (jwt_token string, err error) {
 	claims := CustomClaims{
 		Name: username,
 		IsUserToken: isUser,

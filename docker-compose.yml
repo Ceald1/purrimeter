@@ -1,87 +1,4 @@
-# version: '3'
-
-# services:
-#   init-data:
-#     image: busybox
-#     command: chmod -R 777 /data
-#     volumes:
-#       - ./data:/data
-
-#   surrealdb:
-#     image: surrealdb/surrealdb:latest
-#     container_name: surrealdb
-#     restart: always
-#     command: start --user ${SURREAL_ADMIN} --pass ${SURREAL_PASS} file:/data/database.db
-#     ports:
-#       - 8000:8000
-#     volumes:
-#       - ./data:/data
-#     depends_on:
-#       init-data:
-#         condition: service_completed_successfully
-#     networks:
-#       - purrimeter-internal
-#     ulimits:
-#       nproc: 65535
-#       nofile:
-#         soft: 65535
-#         hard: 65535
-#       memlock:
-#         soft: -1
-#         hard: -1
-
-#   api:
-#     build:
-#       context: ./api
-#       dockerfile: Dockerfile
-#     restart: always
-#     ports:
-#       - "8080:8080"
-#     networks:
-#       - purrimeter-internal
-#     environment:
-#       - API_ADMIN=${API_ADMIN}
-#       - SURREAL_ADMIN=${SURREAL_ADMIN}
-#       - SURREAL_PASS=${SURREAL_PASS}
-#       - API_ADMIN_PASS=${API_ADMIN_PASS}
-#       - LOGGER_USER=${LOGGER_USER}
-#       - LOGGER_PASS=${LOGGER_PASS}
-#       - JWT_SECRET=${JWT_SECRET}
-#       - AGENT_SECRET=${AGENT_SECRET}
-#     depends_on:
-#       surrealdb:
-#         condition: service_started
-#     healthcheck:
-#       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-#       interval: 5s
-#       timeout: 2s
-#       retries: 2
-#       start_period: 20s
-#     ulimits:
-#       nproc: 65535
-#       nofile:
-#         soft: 65535
-#         hard: 65535
-#       memlock:
-#         soft: -1
-#         hard: -1
-
-
-
-
-# networks:
-#   purrimeter-internal:
-#     driver: bridge
-#     name: "purrimeter-internal"
-#     driver_opts:
-#       com.docker.network.bridge.name: purrimeter0
-#       com.docker.network.driver.mtu: 1500
-
-# # volumes:
-# #   surrealdb-data:
-
-
-version: '3'
+version: '1'
 
 services:
   init-data:
@@ -130,6 +47,7 @@ services:
       - API_ADMIN_PASS=${API_ADMIN_PASS}
       - JWT_SECRET=${JWT_SECRET}
       - AGENT_SECRET=${AGENT_SECRET}
+      - ENRICHMENT_JWT=${ENRICHMENT_JWT}
     depends_on:
       surrealdb:
         condition: service_started
@@ -204,6 +122,26 @@ services:
     depends_on:
       surrealdb:
         condition: service_started
+
+  enrichment:
+    build:
+      context: ./modules/enrichment
+      dockerfile: Dockerfile
+    volumes:
+      - ./modules/enrichment:/app
+    restart: always
+    networks:
+      - purrimeter-internal
+    ports:
+      - 127.0.0.1:8081:8080
+    environment:
+      - SURREAL_ADMIN=${SURREAL_ADMIN}
+      - SURREAL_PASS=${SURREAL_PASS}
+      - ENRICHMENT_JWT=${ENRICHMENT_JWT}
+    depends_on:
+      surrealdb:
+        condition: service_started
+
 networks:
   purrimeter-internal:
     driver: bridge

@@ -23,7 +23,7 @@ var (
 
 func main() {
 	// Create a Gin router with default middleware (logger and recovery)
-	secret := os.Getenv("JWT_SECRET") // different JWT SECRET, this one more private and different environment variable
+	secret := os.Getenv("ENRICHMENT_JWT") // different JWT SECRET, this one more private and different environment variable
 	r := gin.Default()
 	gin.SetMode(gin.ReleaseMode)
 	db, err := surrealdb.FromEndpointURLString(ctx, "ws://surrealdb:8000") // change to `surrealdb` in prod for kubernetes
@@ -49,7 +49,7 @@ func main() {
 			}
 		}(token) // delete token after function ends
 
-	buf, err := os.ReadFile(`pipeline.yaml`)
+	buf, err := os.ReadFile(`/app/pipeline.yaml`)
 	if err != nil {
 		panic(err)
 	}
@@ -60,7 +60,7 @@ func main() {
 	}
 
 	// requires JWT token in header
-	r.POST(`/enrich`, func(ctx *gin.Context) {
+	r.POST(`/enrichment`, func(ctx *gin.Context) {
 		auth := ctx.GetHeader(`Authentication`)
 		if len(auth) < 10 {
 			ctx.JSON(403, ErrorResponse{Error: `JWT required!`}) // you fr??
@@ -69,6 +69,7 @@ func main() {
 		_, err = crypto.VerifyToken(auth, secret)
 		if err != nil {
 			ctx.JSON(403, ErrorResponse{Error: err.Error()})
+			return
 		}
 		var  log_data map[string]interface{}
 		err = ctx.ShouldBindBodyWithJSON(&log_data)
@@ -76,9 +77,9 @@ func main() {
 			ctx.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
 			return
 		}
-		ctx.JSON(http.StatusOK, enrich(log_data, "", pipeline, db))
-
+		ctx.JSON(http.StatusOK, enrich(log_data,"" , pipeline, db))
 	})
+	r.Run()
 	
 }
 
@@ -115,7 +116,7 @@ func process(log map[string]interface{}, enrichment string, pipeline Pipeline, d
 	}
 	for _, field := range fields{
 		value := findInMap(log, field)
-		if value == "" {
+		if value == "" || value == nil {
 			continue
 		}
 
@@ -127,14 +128,16 @@ func process(log map[string]interface{}, enrichment string, pipeline Pipeline, d
 		}else{
 			query = fmt.Sprintf(`SELECT * FROM %s WHERE %s IN ORDER BY DESC LIMIT 1`, table, value)
 		}
-		raw_results, err := surrealdb.Query[[]any](ctx, db, query, map[string]any{})
-		if err != nil {
-			panic(err)
-		}
-		raw_result := (*raw_results)[0].Result
-		b, _ := json.Marshal(raw_result)
-		json.Unmarshal(b, &QueryResult)
-		pushTO = append(pushTO, QueryResult...)
+		go func(){
+			raw_results, err := surrealdb.Query[[]any](ctx, db, query, map[string]any{})
+			if err != nil {
+				panic(err)
+			}
+			raw_result := (*raw_results)[0].Result
+			b, _ := json.Marshal(raw_result)
+			json.Unmarshal(b, &QueryResult)
+			pushTO = append(pushTO, QueryResult...)
+		}()
 	}
 	enrichedLog[enrichmentStep.PushTO] = pushTO
 	return enrichedLog

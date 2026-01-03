@@ -1,6 +1,6 @@
 ## EXAMPLE PIPELINE, yes it's sequential
 pipeline:
-  - threatIntel: # name of step
+  threatIntel: # name of step
     namespace: "intel" # name of namespace in DB
     database: "intel" # name of database in DB
     table: "intel" # name of table

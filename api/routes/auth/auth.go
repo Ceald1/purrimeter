@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -63,7 +64,7 @@ func RegisterAgent(c *gin.Context, db *surrealdb.DB) {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()}) // uh oh
 		return
 	}
-	agentToken, err := crypto.CreateToken(agentRegister.Name,false) // create jwt
+	agentToken, err := crypto.CreateToken(agentRegister.Name,false, os.Getenv("JWT_SECRET")) // create jwt
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: err.Error()}) // uh oh 2
 	}

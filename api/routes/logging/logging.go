@@ -3,8 +3,11 @@ package logging
 // Deals with agent logs being sent TO database
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -96,9 +99,12 @@ func checkAgent(db *surrealdb.DB, agentName string) (err error) {
 }
 
 func Async(db *surrealdb.DB) {
+	jwt_enrichment := os.Getenv("ENRICHMENT_JWT")
+	jwtToken, _ := crypto.CreateToken("api", false, jwt_enrichment)
 	for {
 		for len(LOGS_TO_COMMIT) > 0 {
 			l := LOGS_TO_COMMIT[0]
+			l.LogData = enrich(jwtToken, `http://enrichment:8080/enrichment`, l.LogData)
 			err := submitLogToDB(db, l.AgentName, l.LogData)
 			if err != nil {
 				fmt.Println(err.Error())
@@ -107,6 +113,63 @@ func Async(db *surrealdb.DB) {
 		}
 		time.Sleep(time.Second * 2)
 	}
+}
+
+
+func enrich(token string, enrichmentHost string, log map[string]interface{}) map[string]interface{} {
+	// marshal input once
+	js, err := json.Marshal(log)
+	if err != nil {
+		fmt.Println("marshal error:", err)
+		return log
+	}
+
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	const maxAttempts = 5
+	var bodyBytes []byte
+
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		req, err := http.NewRequest(http.MethodPost, enrichmentHost, bytes.NewReader(js))
+		if err != nil {
+			fmt.Println("create request error:", err)
+			return log
+		}
+		req.Header.Set("Content-Type", "application/json")
+		if token != "" {
+			req.Header.Set("Authentication", token)
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			// transient network error - retry with backoff
+			wait := time.Duration(attempt) * time.Millisecond
+			time.Sleep(wait)
+			continue
+		}
+
+		// ensure body is closed for every response
+		body, readErr := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if readErr != nil {
+			fmt.Println("read body error:", readErr)
+			wait := time.Duration(attempt) * time.Millisecond
+			time.Sleep(wait)
+			continue
+		}
+
+		bodyBytes = body
+		break
+	}
+	var enriched map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &enriched); err != nil {
+		fmt.Println("unmarshal response error:", err)
+		return log
+	}
+
+	return enriched
 }
 
 
