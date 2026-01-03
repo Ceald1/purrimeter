@@ -178,7 +178,8 @@ func main(){
 	// SELECT * from agentLogs:033fd53d61ee9fe965df708c89801251481e693e65035f54588bf5c55b1e99b1>.. LIMIT 1 START 1
 	// ```
 	if realtimeUpdate == false{
-		query = fmt.Sprintf(`SELECT * FROM %s>.. LIMIT 200 START 1`, lastLog.ID)
+		query = fmt.Sprintf(`SELECT *, log_number %% %d = %d FROM %s>.. LIMIT 200 START 1`,int64(NUM_OF_ALERT_SERVICES), int64(ALERT_SERVICE_NUMBER) - 1, lastLog.ID)
+		// fmt.Sprintf(`SELECT *, log_number %% %d = %d FROM agentLogs LIMIT 420`, int64(NUM_OF_ALERT_SERVICES), int64(ALERT_SERVICE_NUMBER) - 1)
 		goto START_AGAIN
 	}
 	fmt.Println("starting realtime updates...")
@@ -208,7 +209,7 @@ func main(){
 }
 
 func alert(rule_set []Rule, log AgentLog, db *surrealdb.DB) {
-	var err error
+	// var err error
 	for _, rule := range rule_set{
 		field := rule.Conditions.Field
 		description := rule.Description
@@ -227,7 +228,7 @@ func alert(rule_set []Rule, log AgentLog, db *surrealdb.DB) {
 		notEquals := rule.Conditions.NotEquals
 		lessThan := rule.Conditions.LessThan
 		greaterThan := rule.Conditions.GreaterThan
-
+		var rule_formatted map[string]interface{}
 		// contains
 		for _, contain := range contains {
 			var match bool = false
@@ -240,11 +241,10 @@ func alert(rule_set []Rule, log AgentLog, db *surrealdb.DB) {
 			}
 			if match == true {
 					// send alert to DB and reference the ID
-					var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
-					err = SendAlert(rule_formatted, entryID, db)
-					if err != nil {
-						panic(err)
-					}
+					rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+					// if err != nil {
+					// 	panic(err)
+					// }
 					goto StopCheck
 				}
 			
@@ -262,11 +262,11 @@ func alert(rule_set []Rule, log AgentLog, db *surrealdb.DB) {
 			}
 			if match == true {
 					// send alert to DB and reference the ID
-					var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
-					err = SendAlert(rule_formatted, entryID, db)
-					if err != nil {
-						panic(err)
-					}
+					rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+					// err = SendAlert(rule_formatted, entryID, db)
+					// if err != nil {
+					// 	panic(err)
+					// }
 					goto StopCheck
 				}
 		}
@@ -274,11 +274,11 @@ func alert(rule_set []Rule, log AgentLog, db *surrealdb.DB) {
 		// check if equals
 		for _, equal := range equals {
 			if fmt.Sprintf("%v",equal) == fmt.Sprintf("%v",field_value) {
-				var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
-				err = SendAlert(rule_formatted, entryID, db)
-				if err != nil {
-					panic(err)
-				}
+				rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+				// err = SendAlert(rule_formatted, entryID, db)
+				// if err != nil {
+				// 	panic(err)
+				// }
 				goto StopCheck
 			}
 		}
@@ -286,11 +286,11 @@ func alert(rule_set []Rule, log AgentLog, db *surrealdb.DB) {
 		// check if not equals
 		for _, notEqual := range notEquals {
 			if fmt.Sprintf("%v", notEqual) != fmt.Sprintf("%v", field_value ){
-				var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
-				err = SendAlert(rule_formatted, entryID, db)
-				if err != nil {
-					panic(err)
-				}
+				rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+				// err = SendAlert(rule_formatted, entryID, db)
+				// if err != nil {
+				// 	panic(err)
+				// }
 				goto StopCheck
 			}
 		}
@@ -298,11 +298,11 @@ func alert(rule_set []Rule, log AgentLog, db *surrealdb.DB) {
 		// less than
 		for _, l := range lessThan {
 			if l.(int) < field_value.(int) {
-				var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
-				err = SendAlert(rule_formatted, entryID, db)
-				if err != nil {
-					panic(err)
-				}
+				rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+				// err = SendAlert(rule_formatted, entryID, db)
+				// if err != nil {
+				// 	panic(err)
+				// }
 				goto StopCheck
 			}
 		}
@@ -310,11 +310,11 @@ func alert(rule_set []Rule, log AgentLog, db *surrealdb.DB) {
 		// greater than
 		for _, g := range greaterThan {
 			if g.(int) > field_value.(int) {
-				var rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
-				err = SendAlert(rule_formatted, entryID, db)
-				if err != nil {
-					panic(err)
-				}
+				rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+				// err = SendAlert(rule_formatted, entryID, db)
+				// if err != nil {
+				// 	panic(err)
+				// }
 				goto StopCheck
 			}
 		}
@@ -322,13 +322,14 @@ func alert(rule_set []Rule, log AgentLog, db *surrealdb.DB) {
 
 		// stop checking
 			StopCheck:
-				return
+				go SendAlert(rule_formatted, entryID, db)
+				continue
 
 	}
 }
 
 // send alert to DB directly and reference the original log id
-func SendAlert(alertData map[string]interface{}, originalLogID *models.RecordID, db *surrealdb.DB) (err error) {
+func SendAlert(alertData map[string]interface{}, originalLogID *models.RecordID, db *surrealdb.DB){
 	var alert Alert
 	var retries = 0
 	var retry_limit = 20
@@ -342,10 +343,10 @@ func SendAlert(alertData map[string]interface{}, originalLogID *models.RecordID,
 	}
 	recordID := models.NewRecordID(`alerts`, recordName)
 	DB:
-	_, err = surrealdb.Create[Alert](ctx, db, recordID, alert)
+	_, err := surrealdb.Create[Alert](ctx, db, recordID, alert)
 	if err != nil {
 		if strings.Contains(err.Error(), `already exists`) {
-			return nil
+			return
 		}else{
 			if retries < retry_limit{
 				retries = retries + 1
@@ -353,9 +354,8 @@ func SendAlert(alertData map[string]interface{}, originalLogID *models.RecordID,
 				goto DB
 			}
 		}
-        return err
+        panic(err)
 	}
-	return nil
 }
 
 // check if is valid regex
