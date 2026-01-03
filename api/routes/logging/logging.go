@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -23,9 +24,10 @@ var (
 
 
 func SubmitLog( c *gin.Context, db *surrealdb.DB) {
+	secret := os.Getenv("JWT_SECRET")
 	agentToken := c.GetHeader("Authorization")
 	agentToken = strings.Replace(agentToken, "Bearer ", "", -1)
-	agentClaims, err := crypto.VerifyToken(agentToken)
+	agentClaims, err := crypto.VerifyToken(agentToken, secret)
 	if err != nil {
 		c.JSON(403, ErrorResponse{Error: err.Error()}) // you fr??
 		return
@@ -49,9 +51,10 @@ func SubmitLog( c *gin.Context, db *surrealdb.DB) {
 }
 
 func SubmitLogs( c *gin.Context, db *surrealdb.DB) {
+	secret := os.Getenv("JWT_SECRET")
 	agentToken := c.GetHeader("Authorization")
 	agentToken = strings.Replace(agentToken, "Bearer ", "", -1)
-	agentClaims, err := crypto.VerifyToken(agentToken)
+	agentClaims, err := crypto.VerifyToken(agentToken, secret)
 	if err != nil {
 		c.JSON(403, ErrorResponse{Error: err.Error()}) // you fr??
 		return

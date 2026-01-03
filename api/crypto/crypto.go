@@ -11,8 +11,7 @@ import (
 )
 
 // verifies the token and returns the `CustomClaims` struct and error
-func VerifyToken(jwtToken string) (claims *CustomClaims, err error) {
-	secret := os.Getenv("JWT_SECRET")
+func VerifyToken(jwtToken, secret string) (claims *CustomClaims, err error) {
 	claims = &CustomClaims{} // Initialize claims pointer
 	token, err := jwt.ParseWithClaims(jwtToken, claims, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {

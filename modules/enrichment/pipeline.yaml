@@ -1,0 +1,14 @@
+## EXAMPLE PIPELINE, yes it's sequential
+pipeline:
+  - threatIntel: # name of step
+    namespace: "intel" # name of namespace in DB
+    database: "intel" # name of database in DB
+    table: "intel" # name of table
+    fields: # fields to look for in log
+      - "ip"
+      - "hash"
+      - "name"
+      - "domain"
+      - "url"
+    query: "SELECT * FROM %s WHERE %s IN 'ioc' ORDER BY DESC LIMIT 1" # query against DB to search, %s is string that will be replaced
+    pushTO: "intel" # what field in the log to push to
