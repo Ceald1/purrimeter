@@ -79,6 +79,40 @@ func main() {
 		}
 		ctx.JSON(http.StatusOK, enrich(log_data,"" , pipeline, db))
 	})
+	r.POST(`/updatePipeline`, func(ctx *gin.Context) {
+		auth := ctx.GetHeader(`Authentication`)
+		if len(auth) < 10 {
+			ctx.JSON(403, ErrorResponse{Error: `JWT required!`}) // you fr??
+			return
+		}
+		_, err = crypto.VerifyToken(auth, secret)
+		if err != nil {
+			ctx.JSON(403, ErrorResponse{Error: err.Error()})
+			return
+		}
+		var newPipeline Pipeline
+		err = ctx.ShouldBindBodyWithYAML(&newPipeline)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
+			return
+		}
+		pipeline = newPipeline
+		var data []byte
+		data, err = YAML.Marshal(&pipeline)
+		if  err != nil {
+			ctx.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
+			return
+		}
+		err = os.WriteFile(`/app/pipeline.yaml`, data, 0644)
+		if  err != nil {
+			ctx.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
+			return
+		}
+		ctx.JSON(200, `ok`)
+	})
+
+
+
 	r.Run()
 	
 }
