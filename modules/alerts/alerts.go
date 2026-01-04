@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Ceald1/purrimeter/api/crypto"
+	types "github.com/Ceald1/purrimeter/modules/alerts/types"
 
 	YAML "github.com/goccy/go-yaml"
 
@@ -77,7 +78,7 @@ func get_last_query(filename string) (query string) {
 }
 
 
-func grabRules() (rules []Rule, err error) {
+func grabRules() (rules []types.Rule, err error) {
 	var path string = "/app/rules"
 	files, err := os.ReadDir(path)
     if err != nil {
@@ -90,7 +91,7 @@ func grabRules() (rules []Rule, err error) {
 		if err != nil {
 			return rules, err
 		}
-		var rulesData RuleFile
+		var rulesData types.RuleFile
 		err = YAML.Unmarshal(data, &rulesData)
 		if err != nil {
 			return rules, err
@@ -149,7 +150,7 @@ func main(){
 		}
 	}
 	
-	var lastLog AgentLog
+	var lastLog types.AgentLog
 	var realtimeUpdate bool = false
 	START_AGAIN:
 	err = db.Use(ctx, `agentLogs`, `agentLogs`) // test agentLogs
@@ -158,7 +159,7 @@ func main(){
 	}
 	lastQueryFile, _ := os.OpenFile(queryFile, os.O_RDWR|os.O_CREATE, 0644)
 	lastQueryFile.WriteString(query)
-	entries, err := surrealdb.Query[[]AgentLog](ctx, db, query, map[string]any{})
+	entries, err := surrealdb.Query[[]types.AgentLog](ctx, db, query, map[string]any{})
 	if err != nil {
 		panic(err)
 	}
@@ -192,7 +193,7 @@ func main(){
 	// live stuff goes here.
 	for notification := range notifications {
 		resultAny := notification.Result.(map[string]any)
-		var result AgentLog
+		var result types.AgentLog
 		jsData, _ := json.Marshal(resultAny)
 		json.Unmarshal(jsData, &result)
 		resultID := result.Number
@@ -208,7 +209,7 @@ func main(){
 	}
 }
 
-func alert(rule_set []Rule, log AgentLog, db *surrealdb.DB) {
+func alert(rule_set []types.Rule, log types.AgentLog, db *surrealdb.DB) {
 	// var err error
 	for _, rule := range rule_set{
 		field := rule.Conditions.Field
@@ -330,20 +331,20 @@ func alert(rule_set []Rule, log AgentLog, db *surrealdb.DB) {
 
 // send alert to DB directly and reference the original log id
 func SendAlert(alertData map[string]interface{}, originalLogID *models.RecordID, db *surrealdb.DB){
-	var alert Alert
+	var alert types.Alert
 	var retries = 0
 	var retry_limit = 20
 	alertData["referencedRecord"] = originalLogID.ID
 	db.Use(ctx, `alerts`, `alerts`)
 	recordName := crypto.Hash(fmt.Sprintf("%v", alertData))
-	alert = Alert{
+	alert = types.Alert{
 		Name: recordName,
 		LogData: alertData,
 		OriginalLog: originalLogID,
 	}
 	recordID := models.NewRecordID(`alerts`, recordName)
 	DB:
-	_, err := surrealdb.Create[Alert](ctx, db, recordID, alert)
+	_, err := surrealdb.Create[types.Alert](ctx, db, recordID, alert)
 	if err != nil {
 		if strings.Contains(err.Error(), `already exists`) {
 			return
@@ -365,7 +366,7 @@ func IsValidRegex(pattern string) bool {
 }
 
 // find field
-func FindField(log AgentLog, field string) (result any) {
+func FindField(log types.AgentLog, field string) (result any) {
 	var logData = log.LogData
 
 	if value, exists := logData[field]; exists {

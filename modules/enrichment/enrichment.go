@@ -13,6 +13,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	surrealdb "github.com/surrealdb/surrealdb.go"
+	types "github.com/Ceald1/purrimeter/modules/enrichment/types"
 )
 var (
   SURREAL_ADMIN string = os.Getenv("SURREAL_ADMIN")
@@ -53,7 +54,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	var pipeline Pipeline
+	var pipeline types.Pipeline
 	err = YAML.Unmarshal(buf, &pipeline)
 	if err != nil {
 		panic(err)
@@ -63,18 +64,18 @@ func main() {
 	r.POST(`/enrichment`, func(ctx *gin.Context) {
 		auth := ctx.GetHeader(`Authentication`)
 		if len(auth) < 10 {
-			ctx.JSON(403, ErrorResponse{Error: `JWT required!`}) // you fr??
+			ctx.JSON(403, types.ErrorResponse{Error: `JWT required!`}) // you fr??
 			return
 		}
 		_, err = crypto.VerifyToken(auth, secret)
 		if err != nil {
-			ctx.JSON(403, ErrorResponse{Error: err.Error()})
+			ctx.JSON(403, types.ErrorResponse{Error: err.Error()})
 			return
 		}
 		var  log_data map[string]interface{}
 		err = ctx.ShouldBindBodyWithJSON(&log_data)
 		if err != nil {
-			ctx.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
+			ctx.JSON(http.StatusBadRequest, types.ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
 			return
 		}
 		ctx.JSON(http.StatusOK, enrich(log_data,"" , pipeline, db))
@@ -82,30 +83,30 @@ func main() {
 	r.POST(`/updatePipeline`, func(ctx *gin.Context) {
 		auth := ctx.GetHeader(`Authentication`)
 		if len(auth) < 10 {
-			ctx.JSON(403, ErrorResponse{Error: `JWT required!`}) // you fr??
+			ctx.JSON(403, types.ErrorResponse{Error: `JWT required!`}) // you fr??
 			return
 		}
 		_, err = crypto.VerifyToken(auth, secret)
 		if err != nil {
-			ctx.JSON(403, ErrorResponse{Error: err.Error()})
+			ctx.JSON(403, types.ErrorResponse{Error: err.Error()})
 			return
 		}
-		var newPipeline Pipeline
+		var newPipeline types.Pipeline
 		err = ctx.ShouldBindBodyWithYAML(&newPipeline)
 		if err != nil {
-			ctx.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
+			ctx.JSON(http.StatusBadRequest, types.ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
 			return
 		}
 		pipeline = newPipeline
 		var data []byte
 		data, err = YAML.Marshal(&pipeline)
 		if  err != nil {
-			ctx.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
+			ctx.JSON(http.StatusBadRequest, types.ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
 			return
 		}
 		err = os.WriteFile(`/app/pipeline.yaml`, data, 0644)
 		if  err != nil {
-			ctx.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
+			ctx.JSON(http.StatusBadRequest, types.ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
 			return
 		}
 		ctx.JSON(200, `ok`)
@@ -118,7 +119,7 @@ func main() {
 }
 
 // enrich logs, specific enrichment can be used
-func enrich(log map[string]interface{}, specificEnrichment string, pipeline Pipeline, db *surrealdb.DB) (map[string]interface{}) {
+func enrich(log map[string]interface{}, specificEnrichment string, pipeline types.Pipeline, db *surrealdb.DB) (map[string]interface{}) {
 	if specificEnrichment != "" {
 		return process(log, specificEnrichment, pipeline, db)
 	}else{
@@ -131,7 +132,7 @@ func enrich(log map[string]interface{}, specificEnrichment string, pipeline Pipe
 }
 
 // actually process log
-func process(log map[string]interface{}, enrichment string, pipeline Pipeline, db *surrealdb.DB) (enrichedLog map[string]interface{}) {
+func process(log map[string]interface{}, enrichment string, pipeline types.Pipeline, db *surrealdb.DB) (enrichedLog map[string]interface{}) {
 	enrichmentStep, ok := pipeline.Pipeline[enrichment]
 	if !ok {
 		return log

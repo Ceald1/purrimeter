@@ -1,4 +1,4 @@
-package main
+package enrichment
 
 type Pipeline struct {
     Pipeline PipelineStep `yaml:"pipeline"`
