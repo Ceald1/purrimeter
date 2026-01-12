@@ -25,10 +25,13 @@ var (
 	SURREAL_PASS string = os.Getenv("SURREAL_PASS")
 	LOGGER_USER string = os.Getenv("LOGGER_USER")
 	LOGGER_PASS string = os.Getenv("LOGGER_PASS")
+	DEBUG string = os.Getenv(`DEBUG`)
 	NUM_OF_ALERT_SERVICES, _ = strconv.Atoi(os.Getenv("NUM_OF_ALERT_SERVICES")) // for clustering alerts for scaling purposes
 	ALERT_SERVICE_NUMBER, _ = strconv.Atoi(os.Getenv("ALERT_SERVICE_NUMBER")) // for clustering alerts for scaling purposes
 	query string
 	SURREAL_HOST = "surrealdb" // change as needed.
+	fileNames []string
+	GLOBAL_RULES []types.Rule
 
 )
 
@@ -44,6 +47,15 @@ func create_logger_user(db *surrealdb.DB, user, password string) (err error) {
 		return err
 	}
 	err = db.Use(ctx, `alerts`, `alerts`)
+	if err != nil {
+		return err
+	}
+	query = fmt.Sprintf(`DEFINE USER IF NOT EXISTS %s ON ROOT PASSWORD "%s" ROLES OWNER`, user, password)
+	_, err = surrealdb.Query[any](ctx, db, query, map[string]any{}) 
+	if err != nil {
+		return err
+	}
+	err = db.Use(ctx, `rules`, `rules`)
 	if err != nil {
 		return err
 	}
@@ -79,7 +91,12 @@ func get_last_query(filename string) (query string) {
 
 
 func grabRules() (rules []types.Rule, err error) {
-	var path string = "/app/rules"
+	var path string
+	if DEBUG != `1`{
+		path = "/app/rules"
+	}else{
+		path = `./rules`
+	}
 	files, err := os.ReadDir(path)
     if err != nil {
         err = fmt.Errorf("Error reading directory: %s", err)
@@ -87,6 +104,7 @@ func grabRules() (rules []types.Rule, err error) {
     }
 	for _, file := range files {
 		filePath := filepath.Join(path, file.Name())
+		fileNames = append(fileNames, file.Name())
 		data, err := os.ReadFile(filePath)
 		if err != nil {
 			return rules, err
@@ -105,17 +123,28 @@ func grabRules() (rules []types.Rule, err error) {
 
 
 func main(){
-	queryFile := fmt.Sprintf(`/app/alerts_%d.sql`, ALERT_SERVICE_NUMBER)
+	var queryFile string
+	if DEBUG == `1`{
+		NUM_OF_ALERT_SERVICES = 1
+		ALERT_SERVICE_NUMBER = 1
+		SURREAL_HOST = `127.0.0.1`
+		queryFile = fmt.Sprintf(`./alerts_%d.sql`, ALERT_SERVICE_NUMBER)
+
+	}else{
+		queryFile = fmt.Sprintf(`/app/alerts_%d.sql`, ALERT_SERVICE_NUMBER)
+	}
 	rule_set, err := grabRules()
 	if err != nil {
 		panic(err)
 	}
+	GLOBAL_RULES = rule_set
 	query = get_last_query(queryFile)
 	// basic crap that needs to run when starting.
 	db, err := surrealdb.FromEndpointURLString(ctx, fmt.Sprintf("ws://%s:8000", SURREAL_HOST)) // change to `surrealdb` in prod
 	if err != nil {
 		panic(err)
 	}
+	dbCopy, _ := surrealdb.FromEndpointURLString(ctx, fmt.Sprintf("ws://%s:8000", SURREAL_HOST))
 	var authData *surrealdb.Auth
 	if SURREAL_ADMIN != "" && SURREAL_PASS != ""{
 		authData = &surrealdb.Auth{
@@ -135,6 +164,8 @@ func main(){
 	if err = db.Authenticate(ctx, token); err != nil {
 		panic(err)
 	}
+	token_, _ := dbCopy.SignIn(ctx, authData)
+	dbCopy.Authenticate(ctx, token_)
 
 
 
@@ -143,13 +174,21 @@ func main(){
 				panic(err)
 			}
 		}(token) // delete token after function ends
+	defer func (token string) {
+		if err := db.Invalidate(ctx); err != nil {
+				panic(err)
+			}
+		}(token_) // delete token after function ends
 	if ALERT_SERVICE_NUMBER == 1 {
 		err = create_logger_user(db, LOGGER_USER, LOGGER_PASS)
 		if err != nil {
 			panic(err)
 		}
 	}
-	
+	_, err = fetchFromDB(db, rule_set, fileNames)
+	if err != nil {
+		panic(err)
+	}
 	var lastLog types.AgentLog
 	var realtimeUpdate bool = false
 	START_AGAIN:
@@ -170,7 +209,7 @@ func main(){
 		}
 		lastLog = entry.Result[len(entry.Result)-1]
 		for _, log := range entry.Result {
-			alert(rule_set, log, db)
+			alert(log, db)
 		}
 	}
 	// repeat and start again.
@@ -190,6 +229,7 @@ func main(){
 	if err != nil {
 		panic(err)
 	}
+	go updateRules(dbCopy, 10)
 	// live stuff goes here.
 	for notification := range notifications {
 		resultAny := notification.Result.(map[string]any)
@@ -198,7 +238,7 @@ func main(){
 		json.Unmarshal(jsData, &result)
 		resultID := result.Number
 		if resultID % int64(NUM_OF_ALERT_SERVICES) == (int64(ALERT_SERVICE_NUMBER) - 1) {
-			alert(rule_set, result, db)
+			alert(result, db)
 			lastLog = result
 			query = fmt.Sprintf(`SELECT * FROM %s>.. LIMIT 200 START 1`, lastLog.ID)
 			lastQueryFile, _ := os.OpenFile(queryFile, os.O_RDWR|os.O_CREATE, 0644)
@@ -209,9 +249,9 @@ func main(){
 	}
 }
 
-func alert(rule_set []types.Rule, log types.AgentLog, db *surrealdb.DB) {
+func alert(log types.AgentLog, db *surrealdb.DB) {
 	// var err error
-	for _, rule := range rule_set{
+	for _, rule := range GLOBAL_RULES{
 		field := rule.Conditions.Field
 		description := rule.Description
 		id := rule.ID
@@ -401,3 +441,131 @@ func findInMap(m map[string]interface{}, field string) any {
 	return nil
 }
 
+// fetch and update rules by comparing them with the database.
+func fetchFromDB(db *surrealdb.DB, rules []types.Rule, fileNames []string) (rulesUpdated []types.Rule, err error) {
+	err = db.Use(ctx, `rules`, `rules`)
+	if err != nil {
+		return rules, err
+	}
+	results, err := surrealdb.Query[map[string]interface{}](ctx, db, `INFO FOR DB`, map[string]any{})
+	if err != nil {
+		return rules, err
+	}
+	results_ := *results
+	tables := results_[0].Result["tables"].(map[string]interface{})
+	var tabledRules []types.Rule
+	var tableNames = make(map[string][]types.Rule)
+	for table, _ := range tables {
+		var tabledNameRules []types.Rule
+		data, err := surrealdb.Select[[]types.SurrealRule](ctx, db, table)
+		if err != nil {
+			return rules, err
+		}
+		
+		for _, entry := range *data {
+			tabledNameRules = append(tabledNameRules, entry.RuleData)
+			tabledRules = append(tabledRules, entry.RuleData)
+		}
+		tableNames[table] = tabledNameRules
+	}
+	if len(tabledRules) < len(rules){
+		for _, name := range fileNames {
+			name = strings.Replace(name, `.yaml`, ``, 1)
+			name = strings.Replace(name, `.yml`, ``, 1)
+			if strings.Contains(name, `.`) {
+				err = fmt.Errorf(`FILE NAME CANNOT HAVE A "." IN THE NAME!`)
+				panic(err)
+			}
+			for _, rule := range rules {
+			surrealRule := types.SurrealRule{
+				RuleData: rule,
+			}
+			recordID := models.NewRecordID(name, surrealRule)
+				_, err = surrealdb.Upsert[any](ctx, db, recordID, surrealRule)
+				if err != nil {
+					panic(err)
+				}
+			}
+		}
+		rulesUpdated = rules
+	}else{
+		var path string
+		if DEBUG != `1` {
+			path = `/app/rules`
+		}else{
+			path = `./rules`
+		}
+		// write new rules to files
+		for fileName, ruleData := range tableNames{
+			filePath := filepath.Join(path, fmt.Sprintf(`%s.yaml`,fileName))
+			f, _ := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+			formatted := types.RuleFile{
+				Rules: ruleData,
+			}
+			marshalled, err := YAML.Marshal(&formatted)
+			if err != nil {
+				panic(err)
+			}
+			f.Write(marshalled)
+
+		}
+		rulesUpdated = tabledRules
+
+	}
+	return
+}
+
+// run on random alerts, will update from database. Run this function every 20 or 30 seconds
+func updateRules(dbCopy *surrealdb.DB, frame int) {
+	dbCopy.Use(ctx, `rules`, `rules`)
+	for {
+		time.Sleep(time.Duration(time.Duration(frame)) * time.Second)
+		fmt.Println(`updating rules...`)
+		
+		results, err := surrealdb.Query[map[string]interface{}](ctx, dbCopy, `INFO FOR DB`, map[string]any{})
+		if err != nil {
+			panic(err)
+		}
+		results_ := *results
+		tables := results_[0].Result["tables"].(map[string]interface{})
+		var tableNames = make(map[string][]types.Rule)
+		var tabledRules []types.Rule
+		for table, _ := range tables {
+			var tabledNameRules []types.Rule
+			data, err := surrealdb.Select[[]types.SurrealRule](ctx, dbCopy, table)
+			if err != nil {
+				panic(err)
+			}
+			
+			for _, entry := range *data {
+				tabledNameRules = append(tabledNameRules, entry.RuleData)
+				tabledRules = append(tabledRules, entry.RuleData)
+			}
+			tableNames[table] = tabledNameRules
+		}
+		var path string
+		if DEBUG != `1` {
+			path = `/app/rules`
+		}else{
+			path = `./rules`
+		}
+		// write new rules to files if the RULE_WRITE ENV is 1 or if DEBUG is 1
+		if os.Getenv(`RULE_WRITE`) == `1` || DEBUG == `1`{
+			for fileName, ruleData := range tableNames{
+				filePath := filepath.Join(path, fmt.Sprintf(`%s.yaml`,fileName))
+				f, _ := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+				formatted := types.RuleFile{
+					Rules: ruleData,
+				}
+				marshalled, err := YAML.Marshal(&formatted)
+				if err != nil {
+					panic(err)
+				}
+				f.Write(marshalled)
+
+			}
+		}
+		GLOBAL_RULES = tabledRules
+		fmt.Println(`updated rules...`)
+	}
+}

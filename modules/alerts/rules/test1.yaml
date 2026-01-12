@@ -1,42 +1,37 @@
 rules:
-  - rule:
-    streams:
-      - "syslog"
-    conditions:
-      contains:
-        - "^.*sudo.*$" # only use regex for contains
-      equals:
-        - "sudo" # only strings for equals or whatever
-      field: "cmdLine"
-    level: 50
-    description: "sudo ran"
-    id: "21efjdslnvsnalvnalanla" # replace with uuid or some shit
-    groups: 
-      - "test"
-
-  - rule:
-    streams:
-      - "syslog"
-    conditions:
-      contains:
-        - "^.*whoami.*$" # only use regex for contains
-      equals:
-        - "whoami" # only strings for equals or whatever
-      field: "cmdLine"
-    level: 50
-    description: "whoami ran"
-    id: "321efjdslnvsnalvnalanla" # replace with uuid or some shit
-    groups:
-      - "test"
-  - rule:
-    streams:
-      - "test"
-    conditions:
-      # equals:
-      #   - "test"
-      contains:
-        - "test"
-      field: "test"
-    level: 50
-    description: "test alert"
-    id: "aekv5ldasvksnsnsmdn2amvsanvalewja1ew1"
+- streams:
+  - syslog
+  conditions:
+    contains:
+    - ^.*sudo.*$
+    equals:
+    - sudo
+    field: cmdLine
+  level: 50
+  description: sudo ran
+  id: 21efjdslnvsnalvnalanla
+  groups:
+  - test
+- streams:
+  - syslog
+  conditions:
+    contains:
+    - ^.*whoami.*$
+    equals:
+    - whoami
+    field: cmdLine
+  level: 50
+  description: whoami ran
+  id: 321efjdslnvsnalvnalanla
+  groups:
+  - test
+- streams:
+  - test
+  conditions:
+    contains:
+    - test
+    field: test
+  level: 50
+  description: test alert
+  id: aekv5ldasvksnsnsmdn2amvsanvalewja1ew1
+  groups: []

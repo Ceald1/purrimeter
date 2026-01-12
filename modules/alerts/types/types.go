@@ -41,3 +41,8 @@ type Conditions struct {
 type RuleFile struct {
 	Rules []Rule `yaml:"rules"`// array of rule files
 }
+
+type SurrealRule struct {
+	ID *models.RecordID `json:"id,omitempty"`
+	RuleData Rule `json:"rule_data,omitempty"`
+}

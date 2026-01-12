@@ -3,7 +3,6 @@ import (
 	"github.com/surrealdb/surrealdb.go/pkg/models"
 )
 
-
 // ---- DB type ----
 type AgentLog struct { // goes into agentLogs database and namespace
 	ID      	*models.RecordID `json:"id,omitempty"`
