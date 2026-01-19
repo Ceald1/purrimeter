@@ -59,7 +59,9 @@ func main() {
     c.JSON(200, gin.H{"status": "ok"})
   })
   // TODO: Add stuff for user login
-
+  // TODO: add shit for updating rules
+  // TODO: Add shit for updating enrichments
+  // TODO: Basic Role based access.
 
   // agent endpoints
   r.POST("/api/v2/agent/register", func(c *gin.Context) {
