@@ -228,7 +228,11 @@ func SearchRules(c *gin.Context) {
 			}
 		}
 	}else{
-		query = fmt.Sprintf(`SELECT * FROM %s WHERE "%s"`, table, ruleTable.MatchStr)
+		if ruleTable.MatchStr != ""{
+			query = fmt.Sprintf(`SELECT * FROM %s WHERE "%s"`, table, ruleTable.MatchStr)
+		}else{
+			query = fmt.Sprintf(`SELECT * FROM %s`, table)
+		}
 	}
 	result, err := surrealdb.Query[[]SurrealRule](ctx, db, query, map[string]any{})
 	if err != nil {
