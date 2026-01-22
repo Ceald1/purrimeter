@@ -18,6 +18,17 @@ type UserLogin struct {
 	Password string `json:"password"`
 }
 
+
+type UpdateUserJSON struct {
+	Action string `json:"action"`
+	Username string `json:"username"`
+	Access string `json:"access,omitempty"`
+	Namespace string `json:"namespace"`
+	Database string  `json:"database"`
+	UserPass string  `json:"user_password,omitempty"`
+}
+
+
 type AgentConfigUpdate struct {
 	Name string `json:"name"` // agent hostname
 	Config string `json:"config"` // base64 encoded yaml configuration
@@ -25,6 +36,12 @@ type AgentConfigUpdate struct {
 type searchRules struct {
 	Table string `json:"table,omitempty"`
 	MatchStr string `json:"match,omitempty"`
+}
+// update rule based on filename/table name
+type UpdateRule struct {
+	Table string `json:"table"`
+	RuleData string `json:"rule_data"` // base64 data (easier to deal with)
+
 }
 
 

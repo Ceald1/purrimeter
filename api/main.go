@@ -7,7 +7,7 @@ import (
 
 	"github.com/Ceald1/purrimeter/api/routes/auth"
 	"github.com/Ceald1/purrimeter/api/routes/logging"
-	// "github.com/Ceald1/purrimeter/api/routes/management"
+	"github.com/Ceald1/purrimeter/api/routes/management"
 	"github.com/gin-gonic/gin"
 	"github.com/surrealdb/surrealdb.go"
 )
@@ -58,10 +58,10 @@ func main() {
   r.GET("/health", func(c *gin.Context) {
     c.JSON(200, gin.H{"status": "ok"})
   })
-  // TODO: Add stuff for user login
-  // TODO: add shit for updating rules
+  // TODO: Add stuff for user login (pending testing)
+  // TODO: add shit for updating rules (pending testing)
   // TODO: Add shit for updating enrichments
-  // TODO: Basic Role based access.
+  // TODO: Basic Role based access. (pending testing)
 
   // agent endpoints
   r.POST("/api/v2/agent/register", func(c *gin.Context) {
@@ -74,6 +74,32 @@ func main() {
     logging.SubmitLogs(c, db)
   })
 
+  // management shit
+  r.POST(`/api/v2/management/user/update`, func(ctx *gin.Context) { // TODO: test
+    management.UpdateUser(ctx)
+  })
+  r.POST(`/api/v2/management/user/login`, func(ctx *gin.Context) { // TODO: test
+    management.LoginUser(ctx)
+  })
+  r.POST(`/api/v2/management/user/register`, func(ctx *gin.Context) { // TODO: test
+    management.RegisterUser(ctx)
+  })
+
+  r.POST(`/api/v2/management/agent/update`, func(ctx *gin.Context) { // TODO: test
+    management.UpdateAgent(ctx)
+  })
+  r.POST(`/api/v2/management/agent/delete`, func(ctx *gin.Context) { // TODO: test
+    management.DeleteAgent(ctx)
+  })
+  r.POST(`/api/v2/management/rules/search`, func(ctx *gin.Context) { // TODO: test
+    management.SearchRules(ctx)
+  })
+  r.POST(`/api/v2/management/rules/list`, func(ctx *gin.Context) { // TODO: test
+    management.ListRuleTables(ctx)
+  })
+  r.POST(`/api/v2/management/rules/update`, func(ctx *gin.Context) {  // TODO: test
+    management.UpdateRules(ctx)
+  })
 
 
 
