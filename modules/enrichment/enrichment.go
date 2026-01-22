@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	surrealdb "github.com/surrealdb/surrealdb.go"
 	types "github.com/Ceald1/purrimeter/modules/enrichment/types"
+	"encoding/base64"
 )
 var (
   SURREAL_ADMIN string = os.Getenv("SURREAL_ADMIN")
@@ -80,6 +81,23 @@ func main() {
 		}
 		ctx.JSON(http.StatusOK, enrich(log_data,"" , pipeline, db))
 	})
+	r.GET(`/enrichment`, func(ctx *gin.Context) {
+		auth := ctx.GetHeader(`Authentication`)
+		if len(auth) < 10 {
+			ctx.JSON(403, types.ErrorResponse{Error: `JWT required!`}) // you fr??
+			return
+		}
+		_, err = crypto.VerifyToken(auth, secret)
+		if err != nil {
+			ctx.JSON(403, types.ErrorResponse{Error: err.Error()})
+			return
+		}
+		bytes, _ :=  YAML.Marshal(&pipeline)
+		result := base64.StdEncoding.EncodeToString(bytes)
+		ctx.JSON(200, map[string]string{"result": result})
+	})
+
+
 	r.POST(`/updatePipeline`, func(ctx *gin.Context) {
 		auth := ctx.GetHeader(`Authentication`)
 		if len(auth) < 10 {
@@ -97,7 +115,7 @@ func main() {
 			ctx.JSON(http.StatusBadRequest, types.ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
 			return
 		}
-		pipeline = newPipeline
+		
 		var data []byte
 		data, err = YAML.Marshal(&pipeline)
 		if  err != nil {
@@ -109,6 +127,7 @@ func main() {
 			ctx.JSON(http.StatusBadRequest, types.ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
 			return
 		}
+		pipeline = newPipeline // update pipeline
 		ctx.JSON(200, `ok`)
 	})
 
