@@ -1,15 +1,22 @@
 package management
+
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"time"
+
 	// "os"
 	"strings"
 
 	// CRYPTO "github.com/Ceald1/purrimeter/api/crypto"
 
 	"encoding/base64"
+	"encoding/json"
 
+	"github.com/Ceald1/purrimeter/api/crypto"
 	"github.com/gin-gonic/gin"
 	YAML "github.com/goccy/go-yaml"
 	surrealdb "github.com/surrealdb/surrealdb.go"
@@ -408,5 +415,135 @@ func UpdateRules(c *gin.Context) {
 		return
 	}
 	c.JSON(200, Result{Result: `ok`})
+}
+
+
+func GetPipeline(c *gin.Context) {
+	db, err := surrealdb.FromEndpointURLString(ctx, "ws://surrealdb:8000")
+	if err != nil {
+		c.JSON(500, ErrorResponse{Error: err.Error()})
+		return
+	}
+	token := strings.Replace(c.GetHeader(`Authorization`), `Bearer `, ``, 1)
+	if len(token) < 10 {
+		c.JSON(403, ErrorResponse{Error: `No token supplied!`})
+		return
+	}
+	err = db.Authenticate(ctx, token)
+	if err != nil {
+		c.JSON(403, ErrorResponse{Error: err.Error()})
+		return
+	}
+	err = db.Use(ctx, `rules`, `rules`)
+	if err != nil {
+		c.JSON(403, ErrorResponse{Error: err.Error()})
+		return
+	}
+	var enrichToken = os.Getenv(`ENRICHMENT_JWT`)
+	info, err := db.Info(ctx)
+	if err != nil {
+		c.JSON(500, ErrorResponse{Error: err.Error()})
+		return
+	}
+	isAdmin := info["role"] == "admin" || info["name"] == "root"
+	if !isAdmin {
+		c.JSON(403, ErrorResponse{Error: `not admin`})
+		return
+	}
+	jwtToken, err := crypto.CreateToken("api", false, enrichToken)
+	if err != nil {
+		c.JSON(500, ErrorResponse{Error: err.Error()})
+		return
+	}
+	enrich_url := `http://enrichment:8080/enrichment`
+	req, err := http.NewRequest(http.MethodGet, enrich_url, nil)
+	if err != nil {
+		c.JSON(500, ErrorResponse{Error: err.Error()})
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	req.Header.Set("Authentication", jwtToken)
+	resp, err := client.Do(req)
+	if err != nil {
+		c.JSON(500, ErrorResponse{Error: err.Error()})
+		return
+	}
+	var response map[string]interface{}
+	json.NewDecoder(resp.Body).Decode(&response)
+	c.JSON(resp.StatusCode, response)
+
+}
+
+func UpdatePipeline(c *gin.Context) {
+	db, err := surrealdb.FromEndpointURLString(ctx, "ws://surrealdb:8000")
+	if err != nil {
+		c.JSON(500, ErrorResponse{Error: err.Error()})
+		return
+	}
+	token := strings.Replace(c.GetHeader(`Authorization`), `Bearer `, ``, 1)
+	if len(token) < 10 {
+		c.JSON(403, ErrorResponse{Error: `No token supplied!`})
+		return
+	}
+	err = db.Authenticate(ctx, token)
+	if err != nil {
+		c.JSON(403, ErrorResponse{Error: err.Error()})
+		return
+	}
+	err = db.Use(ctx, `rules`, `rules`)
+	if err != nil {
+		c.JSON(403, ErrorResponse{Error: err.Error()})
+		return
+	}
+	var enrichToken = os.Getenv(`ENRICHMENT_JWT`)
+	info, err := db.Info(ctx)
+	if err != nil {
+		c.JSON(500, ErrorResponse{Error: err.Error()})
+		return
+	}
+	isAdmin := info["role"] == "admin" || info["name"] == "root"
+	if !isAdmin {
+		c.JSON(403, ErrorResponse{Error: `not admin`})
+		return
+	}
+	jwtToken, err := crypto.CreateToken("api", false, enrichToken)
+	if err != nil {
+		c.JSON(500, ErrorResponse{Error: err.Error()})
+		return
+	}
+	var pipeline any
+	err = c.BindYAML(&pipeline)
+	if err != nil {
+		c.JSON(400, ErrorResponse{Error: err.Error()})
+		return
+	}
+
+	enrich_url := `http://enrichment:8080/updatePipeline`
+	marshalled, err := YAML.Marshal(pipeline)
+	if err != nil {
+		c.JSON(500, ErrorResponse{Error: err.Error()})
+		return
+	}
+	req, err := http.NewRequest(http.MethodGet, enrich_url, bytes.NewBuffer(marshalled))
+	if err != nil {
+		c.JSON(500, ErrorResponse{Error: err.Error()})
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+	req.Header.Set("Authentication", jwtToken)
+	resp, err := client.Do(req)
+	if err != nil {
+		c.JSON(500, ErrorResponse{Error: err.Error()})
+		return
+	}
+	var response any
+	json.NewDecoder(resp.Body).Decode(&response)
+	c.JSON(resp.StatusCode, response)
 
 }

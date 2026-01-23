@@ -101,6 +101,13 @@ func main() {
     management.UpdateRules(ctx)
   })
 
+  // pipeline
+  r.GET(`/api/v2/management/pipeline/get`, func(ctx *gin.Context) { // TODO: test
+    management.GetPipeline(ctx)
+  })
+  r.POST(`/api/v2/management/pipelien/update`, func(ctx *gin.Context) { // TODO: test
+    management.UpdatePipeline(ctx)
+  })
 
 
   if err := r.Run(); err != nil {
