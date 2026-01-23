@@ -105,7 +105,7 @@ func main() {
   r.GET(`/api/v2/management/pipeline/get`, func(ctx *gin.Context) { // TODO: test
     management.GetPipeline(ctx)
   })
-  r.POST(`/api/v2/management/pipelien/update`, func(ctx *gin.Context) { // TODO: test
+  r.POST(`/api/v2/management/pipeline/update`, func(ctx *gin.Context) { // TODO: test
     management.UpdatePipeline(ctx)
   })
 
