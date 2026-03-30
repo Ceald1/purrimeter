@@ -22,10 +22,10 @@ import (
 	surrealdb "github.com/surrealdb/surrealdb.go"
 	"github.com/surrealdb/surrealdb.go/pkg/models"
 )
+
 var (
 	ctx = context.Background()
 )
-
 
 // management for agents (allat jazz)
 
@@ -36,6 +36,7 @@ func RegisterUser(c *gin.Context) {
 		c.JSON(500, ErrorResponse{Error: err.Error()})
 		return
 	}
+	defer db.Close(ctx)
 	token := strings.Replace(c.GetHeader(`Authorization`), `Bearer `, ``, 1)
 	if len(token) < 10 {
 		c.JSON(403, ErrorResponse{Error: `No token supplied!`})
@@ -46,6 +47,7 @@ func RegisterUser(c *gin.Context) {
 		c.JSON(403, ErrorResponse{Error: err.Error()})
 		return
 	}
+
 	var userRegister UserRegister
 	err = c.ShouldBindBodyWithJSON(userRegister)
 	if err != nil {
@@ -58,19 +60,17 @@ func RegisterUser(c *gin.Context) {
 		return
 	}
 	query := "DEFINE USER $username ON DATABASE PASSWORD $password ROLES $role"
-    _, err = surrealdb.Query[any](ctx, db, query, map[string]interface{}{
-        "username": userRegister.Username,
-        "password": userRegister.Password,
-        "role":     "VIEWER", // or userRegister.Role
-    })
+	_, err = surrealdb.Query[any](ctx, db, query, map[string]interface{}{
+		"username": userRegister.Username,
+		"password": userRegister.Password,
+		"role":     "VIEWER", // or userRegister.Role
+	})
 	if err != nil {
 		c.JSON(403, ErrorResponse{Error: err.Error()})
 		return
 	}
 	c.JSON(200, Result{Result: `ok`})
 }
-
-
 
 // use the token for management, needs different database variable than main one
 func LoginUser(c *gin.Context) {
@@ -81,11 +81,12 @@ func LoginUser(c *gin.Context) {
 		c.JSON(403, ErrorResponse{Error: err.Error()})
 		return
 	}
+	defer db.Close(ctx)
 	token, err := db.SignIn(ctx, &surrealdb.Auth{
 		Namespace: `alerts`,
-		Database: `alerts`,
-		Username: userLogin.Username,
-		Password: userLogin.Password,
+		Database:  `alerts`,
+		Username:  userLogin.Username,
+		Password:  userLogin.Password,
 	})
 	if err != nil {
 		c.JSON(403, ErrorResponse{Error: err.Error()})
@@ -94,7 +95,6 @@ func LoginUser(c *gin.Context) {
 	c.JSON(200, Result{Result: token})
 }
 
-
 // update a system user on the database level.
 func UpdateUser(c *gin.Context) {
 	db, err := surrealdb.FromEndpointURLString(ctx, "ws://surrealdb:8000")
@@ -102,6 +102,7 @@ func UpdateUser(c *gin.Context) {
 		c.JSON(500, ErrorResponse{Error: err.Error()})
 		return
 	}
+	defer db.Close(ctx)
 	token := strings.Replace(c.GetHeader(`Authorization`), `Bearer `, ``, 1)
 	if len(token) < 10 {
 		c.JSON(403, ErrorResponse{Error: `No token supplied!`})
@@ -120,61 +121,56 @@ func UpdateUser(c *gin.Context) {
 	}
 	action := actions.Action
 	switch action {
-		case `add`:
-			err = db.Use(ctx, actions.Namespace, actions.Database)
-			if err != nil {
-				c.JSON(403, ErrorResponse{Error: err.Error()})
-				return
-			}
-			query := "DEFINE USER $username ON DATABASE PASSWORD $password ROLES $role"
-			_, err = surrealdb.Query[any](ctx, db, query, map[string]interface{}{
-				"username": actions.Username,
-				"password": actions.UserPass,
-				"role":     actions.Access,
-			})
-			if err != nil {
-				c.JSON(403, ErrorResponse{Error: err.Error()})
-				return
-			}
+	case `add`:
+		err = db.Use(ctx, actions.Namespace, actions.Database)
+		if err != nil {
+			c.JSON(403, ErrorResponse{Error: err.Error()})
+			return
+		}
+		query := "DEFINE USER $username ON DATABASE PASSWORD $password ROLES $role"
+		_, err = surrealdb.Query[any](ctx, db, query, map[string]interface{}{
+			"username": actions.Username,
+			"password": actions.UserPass,
+			"role":     actions.Access,
+		})
+		if err != nil {
+			c.JSON(403, ErrorResponse{Error: err.Error()})
+			return
+		}
 
-		case `update`:
-			err = db.Use(ctx, actions.Namespace, actions.Database)
-			if err != nil {
-				c.JSON(403, ErrorResponse{Error: err.Error()})
-				return
-			}
-			query := "DEFINE USER OVERWRITE $username ON DATABASE PASSWORD $password ROLES $role"
-			_, err = surrealdb.Query[any](ctx, db, query, map[string]interface{}{
-				"username": actions.Username,
-				"password": actions.UserPass,
-				"role":     actions.Access,
-			})
-			if err != nil {
-				c.JSON(403, ErrorResponse{Error: err.Error()})
-				return
-			}
-		case `remove`:
-			err = db.Use(ctx, actions.Namespace, actions.Database)
-			if err != nil {
-				c.JSON(403, ErrorResponse{Error: err.Error()})
-				return
-			}
-			query := "REMOVE USER $username ON DATABASE"
-			_, err = surrealdb.Query[any](ctx, db, query, map[string]interface{}{
-				"username": actions.Username,
-			})
-			if err != nil {
-				c.JSON(403, ErrorResponse{Error: err.Error()})
-				return
-			}
+	case `update`:
+		err = db.Use(ctx, actions.Namespace, actions.Database)
+		if err != nil {
+			c.JSON(403, ErrorResponse{Error: err.Error()})
+			return
+		}
+		query := "DEFINE USER OVERWRITE $username ON DATABASE PASSWORD $password ROLES $role"
+		_, err = surrealdb.Query[any](ctx, db, query, map[string]interface{}{
+			"username": actions.Username,
+			"password": actions.UserPass,
+			"role":     actions.Access,
+		})
+		if err != nil {
+			c.JSON(403, ErrorResponse{Error: err.Error()})
+			return
+		}
+	case `remove`:
+		err = db.Use(ctx, actions.Namespace, actions.Database)
+		if err != nil {
+			c.JSON(403, ErrorResponse{Error: err.Error()})
+			return
+		}
+		query := "REMOVE USER $username ON DATABASE"
+		_, err = surrealdb.Query[any](ctx, db, query, map[string]interface{}{
+			"username": actions.Username,
+		})
+		if err != nil {
+			c.JSON(403, ErrorResponse{Error: err.Error()})
+			return
+		}
 	}
 	c.JSON(200, Result{Result: `ok`})
 }
-
-
-
-
-
 
 // agent management
 
@@ -185,6 +181,7 @@ func DeleteAgent(c *gin.Context) {
 		c.JSON(500, ErrorResponse{Error: err.Error()})
 		return
 	}
+	defer db.Close(ctx)
 	token := strings.Replace(c.GetHeader(`Authorization`), `Bearer `, ``, 1)
 	if len(token) < 10 {
 		c.JSON(403, ErrorResponse{Error: `No token supplied!`})
@@ -208,7 +205,7 @@ func DeleteAgent(c *gin.Context) {
 		return
 	}
 	query := fmt.Sprintf(`DELETE FROM agents WHERE name = "%s"`, agent.AgentName)
-	_,err = surrealdb.Query[any](ctx, db, query, map[string]any{})
+	_, err = surrealdb.Query[any](ctx, db, query, map[string]any{})
 	if err != nil {
 		c.JSON(500, ErrorResponse{Error: err.Error()})
 		return
@@ -247,7 +244,7 @@ func UpdateAgent(c *gin.Context) {
 	record := models.NewRecordID(`agents`, agentUpdate.Name)
 	b64Decoded, err := base64.RawStdEncoding.DecodeString(agentUpdate.Config)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})  // didn't base64 encode it
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()}) // didn't base64 encode it
 		return
 	}
 	_, err = surrealdb.Update[any](ctx, db, record, map[string]any{
@@ -255,7 +252,7 @@ func UpdateAgent(c *gin.Context) {
 	})
 	if err != nil {
 		c.JSON(500, ErrorResponse{Error: err.Error()})
-		return	
+		return
 	}
 	c.JSON(200, Result{Result: "ok"})
 }
@@ -267,6 +264,7 @@ func ListRuleTables(c *gin.Context) {
 		c.JSON(500, ErrorResponse{Error: err.Error()})
 		return
 	}
+	defer db.Close(ctx)
 	token := strings.Replace(c.GetHeader(`Authorization`), `Bearer `, ``, 1)
 	if len(token) < 10 {
 		c.JSON(403, ErrorResponse{Error: `No token supplied!`})
@@ -300,13 +298,14 @@ func Tables(db *surrealdb.DB) (tables []string) {
 	return tables
 }
 
-// search database for specific rule matching 
+// search database for specific rule matching
 func SearchRules(c *gin.Context) {
 	db, err := surrealdb.FromEndpointURLString(ctx, "ws://surrealdb:8000")
 	if err != nil {
 		c.JSON(500, ErrorResponse{Error: err.Error()})
 		return
 	}
+	defer db.Close(ctx)
 	token := strings.Replace(c.GetHeader(`Authorization`), `Bearer `, ``, 1)
 	if len(token) < 10 {
 		c.JSON(403, ErrorResponse{Error: `No token supplied!`})
@@ -322,31 +321,31 @@ func SearchRules(c *gin.Context) {
 		c.JSON(403, ErrorResponse{Error: err.Error()})
 		return
 	}
-	var ruleTable  searchRules
+	var ruleTable searchRules
 	err = c.ShouldBindBodyWithJSON(&ruleTable)
 	table := ruleTable.Table
 	var query string
 	if table == "" {
 		tables := Tables(db)
-		for _, table = range tables{
-			if ruleTable.MatchStr != ""{
+		for _, table = range tables {
+			if ruleTable.MatchStr != "" {
 				if query != "" {
 					query = fmt.Sprintf(`%s\nUNION\nSELECT * FROM %s WHERE "%s"`, query, table, ruleTable.MatchStr)
-				}else{
+				} else {
 					query = fmt.Sprintf(`SELECT * FROM %s WHERE "%s"`, table, ruleTable.MatchStr)
 				}
-			}else{
-				if query != ""{
+			} else {
+				if query != "" {
 					query = fmt.Sprintf(`%s\nUNION\nSELECT * FROM %s`, query, table)
-				}else{
+				} else {
 					query = fmt.Sprintf(`SELECT * FROM %s`, table)
 				}
 			}
 		}
-	}else{
-		if ruleTable.MatchStr != ""{
+	} else {
+		if ruleTable.MatchStr != "" {
 			query = fmt.Sprintf(`SELECT * FROM %s WHERE "%s"`, table, ruleTable.MatchStr)
-		}else{
+		} else {
 			query = fmt.Sprintf(`SELECT * FROM %s`, table)
 		}
 	}
@@ -365,13 +364,13 @@ func SearchRules(c *gin.Context) {
 	c.JSON(200, map[string]any{`result`: rules})
 }
 
-
 func UpdateRules(c *gin.Context) {
 	db, err := surrealdb.FromEndpointURLString(ctx, "ws://surrealdb:8000")
 	if err != nil {
 		c.JSON(500, ErrorResponse{Error: err.Error()})
 		return
 	}
+	defer db.Close(ctx)
 	token := strings.Replace(c.GetHeader(`Authorization`), `Bearer `, ``, 1)
 	if len(token) < 10 {
 		c.JSON(403, ErrorResponse{Error: `No token supplied!`})
@@ -416,7 +415,6 @@ func UpdateRules(c *gin.Context) {
 	}
 	c.JSON(200, Result{Result: `ok`})
 }
-
 
 func GetPipeline(c *gin.Context) {
 	db, err := surrealdb.FromEndpointURLString(ctx, "ws://surrealdb:8000")
@@ -483,6 +481,7 @@ func UpdatePipeline(c *gin.Context) {
 		c.JSON(500, ErrorResponse{Error: err.Error()})
 		return
 	}
+	defer db.Close(ctx)
 	token := strings.Replace(c.GetHeader(`Authorization`), `Bearer `, ``, 1)
 	if len(token) < 10 {
 		c.JSON(403, ErrorResponse{Error: `No token supplied!`})
@@ -547,3 +546,4 @@ func UpdatePipeline(c *gin.Context) {
 	c.JSON(resp.StatusCode, response)
 
 }
+
