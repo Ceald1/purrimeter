@@ -7,6 +7,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
+EXPOSE 8080
 # Copy source code
 COPY . .
 CMD [ "go", "run", "enrichment.go" ]

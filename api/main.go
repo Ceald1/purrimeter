@@ -71,13 +71,13 @@ func main() {
 	})
 
 	// management shit
-	r.POST(`/api/v2/management/user/update`, func(ctx *gin.Context) { // TODO: test
+	r.POST(`/api/v2/management/user/update`, func(ctx *gin.Context) { // TODO: test COMPLETED
 		management.UpdateUser(ctx)
 	})
-	r.POST(`/api/v2/management/user/login`, func(ctx *gin.Context) { // TODO: test COMPLETED
+	r.POST(`/api/v2/management/user/login`, func(ctx *gin.Context) { // TODO: test COMPLETED (removing users works)
 		management.LoginUser(ctx)
 	})
-	r.POST(`/api/v2/management/user/register`, func(ctx *gin.Context) { // TODO: test
+	r.POST(`/api/v2/management/user/register`, func(ctx *gin.Context) { // TODO: test COMPLETED
 		management.RegisterUser(ctx)
 	})
 
@@ -98,7 +98,7 @@ func main() {
 	})
 
 	// pipeline
-	r.GET(`/api/v2/management/pipeline/get`, func(ctx *gin.Context) { // TODO: test
+	r.GET(`/api/v2/management/pipeline/get`, func(ctx *gin.Context) { // TODO: test COMPLETED
 		management.GetPipeline(ctx)
 	})
 	r.POST(`/api/v2/management/pipeline/update`, func(ctx *gin.Context) { // TODO: test

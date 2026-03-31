@@ -2,7 +2,7 @@ package management
 
 import (
 	"bytes"
-	//	"context"
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -21,7 +21,10 @@ import (
 	YAML "github.com/goccy/go-yaml"
 	surrealdb "github.com/surrealdb/surrealdb.go"
 	"github.com/surrealdb/surrealdb.go/pkg/models"
+	"regexp"
 )
+
+var validUsername = regexp.MustCompile(`^[a-zA-Z0-9_]{3,32}$`)
 
 //var (
 //	ctx = context.Background()
@@ -30,6 +33,12 @@ import (
 // management for agents (allat jazz)
 
 // stuff for updating rules, enrichments, agents (all things management)
+func SanitizeIdentifier(s string) (string, error) {
+	if !validUsername.MatchString(s) {
+		return "", fmt.Errorf("invalid username: must be 3-32 characters, alphanumeric and underscores only")
+	}
+	return s, nil
+}
 
 // registering users can only be done from an existing user that is able to add new users onto surrealDB
 func RegisterUser(c *gin.Context) {
@@ -38,7 +47,7 @@ func RegisterUser(c *gin.Context) {
 		c.JSON(500, ErrorResponse{Error: err.Error()})
 		return
 	}
-	defer db.Close(c.Request.Context())
+	//defer db.Close(c.Request.Context())
 	token := strings.Replace(c.GetHeader(`Authorization`), `Bearer `, ``, 1)
 	if len(token) < 10 {
 		c.JSON(403, ErrorResponse{Error: `No token supplied!`})
@@ -51,7 +60,7 @@ func RegisterUser(c *gin.Context) {
 	}
 
 	var userRegister UserRegister
-	err = c.ShouldBindBodyWithJSON(userRegister)
+	err = c.ShouldBindBodyWithJSON(&userRegister)
 	if err != nil {
 		c.JSON(400, ErrorResponse{Error: err.Error()})
 		return
@@ -61,12 +70,24 @@ func RegisterUser(c *gin.Context) {
 		c.JSON(403, ErrorResponse{Error: err.Error()})
 		return
 	}
-	query := "DEFINE USER $username ON DATABASE PASSWORD $password ROLES $role"
-	_, err = surrealdb.Query[any](c.Request.Context(), db, query, map[string]interface{}{
-		"username": userRegister.Username,
-		"password": userRegister.Password,
-		"role":     "VIEWER", // or userRegister.Role
-	})
+	_, err = SanitizeIdentifier(userRegister.Username)
+	if err != nil {
+		c.JSON(400, ErrorResponse{Error: err.Error()})
+	}
+	//	query := "DEFINE USER $username ON DATABASE PASSWORD $password ROLES $role"
+	query := fmt.Sprintf(
+		"DEFINE USER %s ON DATABASE PASSWORD '%s' ROLES %s",
+		userRegister.Username,
+		userRegister.Password,
+		"VIEWER", // e.g., "admin" or "writer"
+	)
+
+	// _, err = surrealdb.Query[any](c.Request.Context(), db, query, map[string]interface{}{
+	// 	"username": userRegister.Username,
+	// 	"password": userRegister.Password,
+	// 	"role":     "VIEWER", // or userRegister.Role
+	// })
+	_, err = surrealdb.Query[any](c.Request.Context(), db, query, nil)
 	if err != nil {
 		c.JSON(403, ErrorResponse{Error: err.Error()})
 		return
@@ -129,6 +150,10 @@ func UpdateUser(c *gin.Context) {
 		c.JSON(403, ErrorResponse{Error: err.Error()})
 		return
 	}
+	_, err = SanitizeIdentifier(actions.Username)
+	if err != nil {
+		c.JSON(400, ErrorResponse{Error: err.Error()})
+	}
 	action := actions.Action
 	switch action {
 	case `add`:
@@ -137,9 +162,10 @@ func UpdateUser(c *gin.Context) {
 			c.JSON(403, ErrorResponse{Error: err.Error()})
 			return
 		}
-		query := "DEFINE USER $username ON DATABASE PASSWORD $password ROLES $role"
+
+		query := "DEFINE USER $name ON DATABASE PASSWORD $password ROLES $role"
 		_, err = surrealdb.Query[any](c.Request.Context(), db, query, map[string]interface{}{
-			"username": actions.Username,
+			"name":     actions.Username,
 			"password": actions.UserPass,
 			"role":     actions.Access,
 		})
@@ -154,9 +180,9 @@ func UpdateUser(c *gin.Context) {
 			c.JSON(403, ErrorResponse{Error: err.Error()})
 			return
 		}
-		query := "DEFINE USER OVERWRITE $username ON DATABASE PASSWORD $password ROLES $role"
+		query := "DEFINE USER OVERWRITE $name ON DATABASE PASSWORD $password ROLES $role"
 		_, err = surrealdb.Query[any](c.Request.Context(), db, query, map[string]interface{}{
-			"username": actions.Username,
+			"name":     actions.Username,
 			"password": actions.UserPass,
 			"role":     actions.Access,
 		})
@@ -170,9 +196,9 @@ func UpdateUser(c *gin.Context) {
 			c.JSON(403, ErrorResponse{Error: err.Error()})
 			return
 		}
-		query := "REMOVE USER $username ON DATABASE"
+		query := "REMOVE USER $name ON DATABASE"
 		_, err = surrealdb.Query[any](c.Request.Context(), db, query, map[string]interface{}{
-			"username": actions.Username,
+			"name": actions.Username,
 		})
 		if err != nil {
 			c.JSON(403, ErrorResponse{Error: err.Error()})
@@ -426,10 +452,24 @@ func UpdateRules(c *gin.Context) {
 	c.JSON(200, Result{Result: `ok`})
 }
 
+func safeInfo(db *surrealdb.DB, ctx context.Context) (result map[string]any, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			result = nil
+			err = fmt.Errorf("info panic: %v", r)
+		}
+	}()
+	return db.Info(ctx)
+}
+
 func GetPipeline(c *gin.Context) {
 	db, err := surrealdb.FromEndpointURLString(c.Request.Context(), "ws://surrealdb:8000")
 	if err != nil {
 		c.JSON(500, ErrorResponse{Error: err.Error()})
+		return
+	}
+	if db == nil {
+		c.JSON(500, ErrorResponse{Error: "db is nil after connect"})
 		return
 	}
 	token := strings.Replace(c.GetHeader(`Authorization`), `Bearer `, ``, 1)
@@ -437,23 +477,37 @@ func GetPipeline(c *gin.Context) {
 		c.JSON(403, ErrorResponse{Error: `No token supplied!`})
 		return
 	}
+
+	err = db.Use(c.Request.Context(), `rules`, `rules`)
+	if err != nil {
+		c.JSON(500, ErrorResponse{Error: err.Error()})
+		return
+	}
+
 	err = db.Authenticate(c.Request.Context(), token)
 	if err != nil {
 		c.JSON(403, ErrorResponse{Error: err.Error()})
 		return
 	}
-	err = db.Use(c.Request.Context(), `rules`, `rules`)
-	if err != nil {
-		c.JSON(403, ErrorResponse{Error: err.Error()})
-		return
-	}
+
 	var enrichToken = os.Getenv(`ENRICHMENT_JWT`)
-	info, err := db.Info(c.Request.Context())
-	if err != nil {
-		c.JSON(500, ErrorResponse{Error: err.Error()})
+	//info, err := db.Info(c.Request.Context())
+	var isAdmin = false
+	info, infoErr := safeInfo(db, c.Request.Context())
+	if infoErr != nil {
+		isAdmin = true // probably root user
+	}
+	if info == nil && !isAdmin {
+		c.JSON(403, ErrorResponse{Error: "could not retrieve token info"})
 		return
 	}
-	isAdmin := info["role"] == "admin" || info["name"] == "root"
+
+	if info["role"] != nil && !isAdmin {
+		if info["role"] == "admin" {
+			isAdmin = true
+		}
+	}
+	//isAdmin := info["role"] == "admin" || info["name"] == "root"
 	if !isAdmin {
 		c.JSON(403, ErrorResponse{Error: `not admin`})
 		return

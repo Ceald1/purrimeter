@@ -60,6 +60,12 @@ func main() {
 		panic(err)
 	}
 
+	r.GET("/", func(ctx *gin.Context) {
+		ctx.JSON(200, map[string]string{
+			"result": "ok",
+		})
+	})
+
 	// requires JWT token in header
 	r.POST(`/enrichment`, func(ctx *gin.Context) {
 		auth := ctx.GetHeader(`Authentication`)

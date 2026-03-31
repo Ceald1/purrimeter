@@ -51,6 +51,8 @@ services:
     depends_on:
       surrealdb:
         condition: service_started
+      enrichment:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
       interval: 5s
@@ -145,6 +147,12 @@ services:
       - SURREAL_ADMIN=${SURREAL_ADMIN}
       - SURREAL_PASS=${SURREAL_PASS}
       - ENRICHMENT_JWT=${ENRICHMENT_JWT}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8080/"]
+      interval: 20s
+      timeout: 2s
+      retries: 99
+      start_period: 0s
     depends_on:
       surrealdb:
         condition: service_started
