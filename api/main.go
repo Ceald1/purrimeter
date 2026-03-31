@@ -54,7 +54,7 @@ func main() {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
-	// TODO: Add stuff for user login (pending testing)
+	// TODO: Add stuff for user login (COMPLETED)
 	// TODO: add shit for updating rules (pending testing)
 	// TODO: Add shit for updating enrichments (pending testing)
 	// TODO: Basic Role based access. (pending testing)
@@ -74,7 +74,7 @@ func main() {
 	r.POST(`/api/v2/management/user/update`, func(ctx *gin.Context) { // TODO: test
 		management.UpdateUser(ctx)
 	})
-	r.POST(`/api/v2/management/user/login`, func(ctx *gin.Context) { // TODO: test
+	r.POST(`/api/v2/management/user/login`, func(ctx *gin.Context) { // TODO: test COMPLETED
 		management.LoginUser(ctx)
 	})
 	r.POST(`/api/v2/management/user/register`, func(ctx *gin.Context) { // TODO: test
@@ -109,4 +109,3 @@ func main() {
 		log.Fatalf("failed to run server: %v", err)
 	}
 }
-

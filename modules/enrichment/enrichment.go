@@ -11,17 +11,17 @@ import (
 
 	YAML "github.com/goccy/go-yaml"
 
+	"encoding/base64"
+	types "github.com/Ceald1/purrimeter/modules/enrichment/types"
 	"github.com/gin-gonic/gin"
 	surrealdb "github.com/surrealdb/surrealdb.go"
-	types "github.com/Ceald1/purrimeter/modules/enrichment/types"
-	"encoding/base64"
-)
-var (
-  SURREAL_ADMIN string = os.Getenv("SURREAL_ADMIN")
-  SURREAL_PASS string = os.Getenv("SURREAL_PASS")
-  ctx = context.Background()
 )
 
+var (
+	SURREAL_ADMIN string = os.Getenv("SURREAL_ADMIN")
+	SURREAL_PASS  string = os.Getenv("SURREAL_PASS")
+	ctx                  = context.Background()
+)
 
 func main() {
 	// Create a Gin router with default middleware (logger and recovery)
@@ -37,19 +37,18 @@ func main() {
 		Password: SURREAL_PASS,
 	} // login data
 	token, err := db.SignIn(ctx, authData) // sign in
-		if err != nil {
-			panic(err)
-		}
+	if err != nil {
+		panic(err)
+	}
 	if err = db.Authenticate(ctx, token); err != nil {
 		panic(err)
 	}
 
-
 	defer func(token string) {
-			if err := db.Invalidate(ctx); err != nil {
-				panic(err)
-			}
-		}(token) // delete token after function ends
+		if err := db.Invalidate(ctx); err != nil {
+			panic(err)
+		}
+	}(token) // delete token after function ends
 
 	buf, err := os.ReadFile(`/app/pipeline.yaml`)
 	if err != nil {
@@ -73,13 +72,13 @@ func main() {
 			ctx.JSON(403, types.ErrorResponse{Error: err.Error()})
 			return
 		}
-		var  log_data map[string]interface{}
+		var log_data map[string]interface{}
 		err = ctx.ShouldBindBodyWithJSON(&log_data)
 		if err != nil {
 			ctx.JSON(http.StatusBadRequest, types.ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
 			return
 		}
-		ctx.JSON(http.StatusOK, enrich(log_data,"" , pipeline, db))
+		ctx.JSON(http.StatusOK, enrich(log_data, "", pipeline, db))
 	})
 	r.GET(`/enrichment`, func(ctx *gin.Context) {
 		auth := ctx.GetHeader(`Authentication`)
@@ -92,11 +91,10 @@ func main() {
 			ctx.JSON(403, types.ErrorResponse{Error: err.Error()})
 			return
 		}
-		bytes, _ :=  YAML.Marshal(&pipeline)
+		bytes, _ := YAML.Marshal(&pipeline)
 		result := base64.StdEncoding.EncodeToString(bytes)
 		ctx.JSON(200, map[string]string{"result": result})
 	})
-
 
 	r.POST(`/updatePipeline`, func(ctx *gin.Context) {
 		auth := ctx.GetHeader(`Authentication`)
@@ -115,15 +113,15 @@ func main() {
 			ctx.JSON(http.StatusBadRequest, types.ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
 			return
 		}
-		
+
 		var data []byte
 		data, err = YAML.Marshal(&pipeline)
-		if  err != nil {
+		if err != nil {
 			ctx.JSON(http.StatusBadRequest, types.ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
 			return
 		}
 		err = os.WriteFile(`/app/pipeline.yaml`, data, 0644)
-		if  err != nil {
+		if err != nil {
 			ctx.JSON(http.StatusBadRequest, types.ErrorResponse{Error: err.Error()}) // how can you send invalid JSON??
 			return
 		}
@@ -131,17 +129,15 @@ func main() {
 		ctx.JSON(200, `ok`)
 	})
 
-
-
 	r.Run()
-	
+
 }
 
 // enrich logs, specific enrichment can be used
-func enrich(log map[string]interface{}, specificEnrichment string, pipeline types.Pipeline, db *surrealdb.DB) (map[string]interface{}) {
+func enrich(log map[string]interface{}, specificEnrichment string, pipeline types.Pipeline, db *surrealdb.DB) map[string]interface{} {
 	if specificEnrichment != "" {
 		return process(log, specificEnrichment, pipeline, db)
-	}else{
+	} else {
 		// loop through enrichments
 		for key, _ := range pipeline.Pipeline {
 			log = process(log, key, pipeline, db)
@@ -162,13 +158,13 @@ func process(log map[string]interface{}, enrichment string, pipeline types.Pipel
 	database := enrichmentStep.Database
 	fields := enrichmentStep.Fields
 	err := db.Use(ctx, nameSpace, database)
-	
+
 	var pushTO = make([]map[string]interface{}, 0)
 	if err != nil {
 		fmt.Println(err.Error())
 		return log
 	}
-	for _, field := range fields{
+	for _, field := range fields {
 		value := findInMap(log, field)
 		if value == "" || value == nil {
 			continue
@@ -177,12 +173,12 @@ func process(log map[string]interface{}, enrichment string, pipeline types.Pipel
 		var QueryResult []map[string]interface{} // convert enrichment results to json
 		var query string
 		// SELECT * FROM agentLogs WHERE "test" LIMIT 1 example query for searches
-		if enrichmentStep.Query != ""{
+		if enrichmentStep.Query != "" {
 			query = fmt.Sprintf(enrichmentStep.Query, table, value)
-		}else{
+		} else {
 			query = fmt.Sprintf(`SELECT * FROM %s WHERE %s IN ORDER BY DESC LIMIT 1`, table, value)
 		}
-		go func(){
+		go func() {
 			raw_results, err := surrealdb.Query[[]any](ctx, db, query, map[string]any{})
 			if err != nil {
 				panic(err)
@@ -200,7 +196,7 @@ func process(log map[string]interface{}, enrichment string, pipeline types.Pipel
 
 func findInMap(m map[string]interface{}, field string) any {
 	if value, exists := m[field]; exists {
-		return  value
+		return value
 	}
 	for _, value := range m {
 		if nestedMap, ok := value.(map[string]interface{}); ok {

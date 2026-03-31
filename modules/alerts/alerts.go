@@ -19,20 +19,20 @@ import (
 	surrealdb "github.com/surrealdb/surrealdb.go"
 	"github.com/surrealdb/surrealdb.go/pkg/models"
 )
-var (
-	ctx = context.Background()
-	SURREAL_ADMIN string = os.Getenv("SURREAL_ADMIN")
-	SURREAL_PASS string = os.Getenv("SURREAL_PASS")
-	LOGGER_USER string = os.Getenv("LOGGER_USER")
-	LOGGER_PASS string = os.Getenv("LOGGER_PASS")
-	DEBUG string = os.Getenv(`DEBUG`)
-	NUM_OF_ALERT_SERVICES, _ = strconv.Atoi(os.Getenv("NUM_OF_ALERT_SERVICES")) // for clustering alerts for scaling purposes
-	ALERT_SERVICE_NUMBER, _ = strconv.Atoi(os.Getenv("ALERT_SERVICE_NUMBER")) // for clustering alerts for scaling purposes
-	query string
-	SURREAL_HOST = "surrealdb" // change as needed.
-	fileNames []string
-	GLOBAL_RULES []types.Rule
 
+var (
+	ctx                             = context.Background()
+	SURREAL_ADMIN            string = os.Getenv("SURREAL_ADMIN")
+	SURREAL_PASS             string = os.Getenv("SURREAL_PASS")
+	LOGGER_USER              string = os.Getenv("LOGGER_USER")
+	LOGGER_PASS              string = os.Getenv("LOGGER_PASS")
+	DEBUG                    string = os.Getenv(`DEBUG`)
+	NUM_OF_ALERT_SERVICES, _        = strconv.Atoi(os.Getenv("NUM_OF_ALERT_SERVICES")) // for clustering alerts for scaling purposes
+	ALERT_SERVICE_NUMBER, _         = strconv.Atoi(os.Getenv("ALERT_SERVICE_NUMBER"))  // for clustering alerts for scaling purposes
+	query                    string
+	SURREAL_HOST             = "surrealdb" // change as needed.
+	fileNames                []string
+	GLOBAL_RULES             []types.Rule
 )
 
 // add Database user for read operations to `agentLog` and owner permissions for `alerts`
@@ -41,8 +41,14 @@ func create_logger_user(db *surrealdb.DB, user, password string) (err error) {
 	if err != nil {
 		return err
 	}
-	query := fmt.Sprintf(`DEFINE USER IF NOT EXISTS %s ON ROOT PASSWORD "%s" ROLES VIEWER;`, user, password)  
-    _, err = surrealdb.Query[any](ctx, db, query, map[string]any{})  
+	_, err = surrealdb.Query[any](ctx, db, `
+		DEFINE TABLE IF NOT EXISTS agentLogs SCHEMALESS;
+		`, nil)
+	if err != nil {
+		return err
+	}
+	query := fmt.Sprintf(`DEFINE USER IF NOT EXISTS %s ON ROOT PASSWORD "%s" ROLES VIEWER;`, user, password)
+	_, err = surrealdb.Query[any](ctx, db, query, map[string]any{})
 	if err != nil {
 		return err
 	}
@@ -51,7 +57,7 @@ func create_logger_user(db *surrealdb.DB, user, password string) (err error) {
 		return err
 	}
 	query = fmt.Sprintf(`DEFINE USER IF NOT EXISTS %s ON ROOT PASSWORD "%s" ROLES OWNER`, user, password)
-	_, err = surrealdb.Query[any](ctx, db, query, map[string]any{}) 
+	_, err = surrealdb.Query[any](ctx, db, query, map[string]any{})
 	if err != nil {
 		return err
 	}
@@ -60,8 +66,8 @@ func create_logger_user(db *surrealdb.DB, user, password string) (err error) {
 		return err
 	}
 	query = fmt.Sprintf(`DEFINE USER IF NOT EXISTS %s ON ROOT PASSWORD "%s" ROLES OWNER`, user, password)
-	_, err = surrealdb.Query[any](ctx, db, query, map[string]any{}) 
-    return err  
+	_, err = surrealdb.Query[any](ctx, db, query, map[string]any{})
+	return err
 }
 func get_last_query(filename string) (query string) {
 	// get last ran query if none create it and write to a file.
@@ -74,9 +80,9 @@ func get_last_query(filename string) (query string) {
 		// int64(total_number_of_nodes), int64(mod)-1
 		fmt.Println("no last query found....")
 		// query = `SELECT *, log_number %% $num_services = $service_index FROM agentLogs LIMIT 420`
-		query = fmt.Sprintf(`SELECT *, log_number %% %d = %d FROM agentLogs LIMIT 420`, int64(NUM_OF_ALERT_SERVICES), int64(ALERT_SERVICE_NUMBER) - 1)
+		query = fmt.Sprintf(`SELECT *, log_number %% %d = %d FROM agentLogs LIMIT 420`, int64(NUM_OF_ALERT_SERVICES), int64(ALERT_SERVICE_NUMBER)-1)
 		lastQueryFile.WriteString(query)
-	}else {
+	} else {
 		buf := make([]byte, stat.Size())
 		n, err := lastQueryFile.Read(buf)
 		if err != nil {
@@ -85,23 +91,21 @@ func get_last_query(filename string) (query string) {
 		query = strings.TrimSpace(string(buf[:n]))
 	}
 
-
 	return query
 }
 
-
 func grabRules() (rules []types.Rule, err error) {
 	var path string
-	if DEBUG != `1`{
+	if DEBUG != `1` {
 		path = "/app/rules"
-	}else{
+	} else {
 		path = `./rules`
 	}
 	files, err := os.ReadDir(path)
-    if err != nil {
-        err = fmt.Errorf("Error reading directory: %s", err)
-        return
-    }
+	if err != nil {
+		err = fmt.Errorf("Error reading directory: %s", err)
+		return
+	}
 	for _, file := range files {
 		filePath := filepath.Join(path, file.Name())
 		fileNames = append(fileNames, file.Name())
@@ -120,17 +124,15 @@ func grabRules() (rules []types.Rule, err error) {
 	return rules, nil
 }
 
-
-
-func main(){
+func main() {
 	var queryFile string
-	if DEBUG == `1`{
+	if DEBUG == `1` {
 		NUM_OF_ALERT_SERVICES = 1
 		ALERT_SERVICE_NUMBER = 1
 		SURREAL_HOST = `127.0.0.1`
 		queryFile = fmt.Sprintf(`./alerts_%d.sql`, ALERT_SERVICE_NUMBER)
 
-	}else{
+	} else {
 		queryFile = fmt.Sprintf(`/app/alerts_%d.sql`, ALERT_SERVICE_NUMBER)
 	}
 	rule_set, err := grabRules()
@@ -146,39 +148,37 @@ func main(){
 	}
 	dbCopy, _ := surrealdb.FromEndpointURLString(ctx, fmt.Sprintf("ws://%s:8000", SURREAL_HOST))
 	var authData *surrealdb.Auth
-	if SURREAL_ADMIN != "" && SURREAL_PASS != ""{
+	if SURREAL_ADMIN != "" && SURREAL_PASS != "" {
 		authData = &surrealdb.Auth{
 			Username: SURREAL_ADMIN,
 			Password: SURREAL_PASS,
 		} // login data
-	}else{
+	} else {
 		authData = &surrealdb.Auth{
 			Username: LOGGER_USER,
 			Password: LOGGER_PASS,
 		}
 	}
 	token, err := db.SignIn(ctx, authData) // sign in
-		if err != nil {
-			panic(err)
-		}
+	if err != nil {
+		panic(err)
+	}
 	if err = db.Authenticate(ctx, token); err != nil {
 		panic(err)
 	}
 	token_, _ := dbCopy.SignIn(ctx, authData)
 	dbCopy.Authenticate(ctx, token_)
 
-
-
 	defer func(token string) {
-			if err := db.Invalidate(ctx); err != nil {
-				panic(err)
-			}
-		}(token) // delete token after function ends
-	defer func (token string) {
 		if err := db.Invalidate(ctx); err != nil {
-				panic(err)
-			}
-		}(token_) // delete token after function ends
+			panic(err)
+		}
+	}(token) // delete token after function ends
+	defer func(token string) {
+		if err := db.Invalidate(ctx); err != nil {
+			panic(err)
+		}
+	}(token_) // delete token after function ends
 	if ALERT_SERVICE_NUMBER == 1 {
 		err = create_logger_user(db, LOGGER_USER, LOGGER_PASS)
 		if err != nil {
@@ -191,7 +191,7 @@ func main(){
 	}
 	var lastLog types.AgentLog
 	var realtimeUpdate bool = false
-	START_AGAIN:
+START_AGAIN:
 	err = db.Use(ctx, `agentLogs`, `agentLogs`) // test agentLogs
 	if err != nil {
 		panic(err)
@@ -213,12 +213,12 @@ func main(){
 		}
 	}
 	// repeat and start again.
-	// example query for offset: 
+	// example query for offset:
 	// ```go
 	// SELECT * from agentLogs:033fd53d61ee9fe965df708c89801251481e693e65035f54588bf5c55b1e99b1>.. LIMIT 1 START 1
 	// ```
-	if realtimeUpdate == false{
-		query = fmt.Sprintf(`SELECT *, log_number %% %d = %d FROM %s>.. LIMIT 200 START 1`,int64(NUM_OF_ALERT_SERVICES), int64(ALERT_SERVICE_NUMBER) - 1, lastLog.ID)
+	if realtimeUpdate == false {
+		query = fmt.Sprintf(`SELECT *, log_number %% %d = %d FROM %s>.. LIMIT 200 START 1`, int64(NUM_OF_ALERT_SERVICES), int64(ALERT_SERVICE_NUMBER)-1, lastLog.ID)
 		// fmt.Sprintf(`SELECT *, log_number %% %d = %d FROM agentLogs LIMIT 420`, int64(NUM_OF_ALERT_SERVICES), int64(ALERT_SERVICE_NUMBER) - 1)
 		goto START_AGAIN
 	}
@@ -237,7 +237,7 @@ func main(){
 		jsData, _ := json.Marshal(resultAny)
 		json.Unmarshal(jsData, &result)
 		resultID := result.Number
-		if resultID % int64(NUM_OF_ALERT_SERVICES) == (int64(ALERT_SERVICE_NUMBER) - 1) {
+		if resultID%int64(NUM_OF_ALERT_SERVICES) == (int64(ALERT_SERVICE_NUMBER) - 1) {
 			alert(result, db)
 			lastLog = result
 			query = fmt.Sprintf(`SELECT * FROM %s>.. LIMIT 200 START 1`, lastLog.ID)
@@ -245,13 +245,12 @@ func main(){
 			lastQueryFile.WriteString(query)
 		}
 
-
 	}
 }
 
 func alert(log types.AgentLog, db *surrealdb.DB) {
 	// var err error
-	for _, rule := range GLOBAL_RULES{
+	for _, rule := range GLOBAL_RULES {
 		field := rule.Conditions.Field
 		description := rule.Description
 		id := rule.ID
@@ -277,18 +276,18 @@ func alert(log types.AgentLog, db *surrealdb.DB) {
 			if isRegex == true {
 				expression, _ := regexp.Compile(contain)
 				match = expression.MatchString(field_value.(string)) // trusting string
-				}else{
+			} else {
 				match = strings.Contains(field_value.(string), contain)
 			}
 			if match == true {
-					// send alert to DB and reference the ID
-					rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
-					// if err != nil {
-					// 	panic(err)
-					// }
-					goto StopCheck
-				}
-			
+				// send alert to DB and reference the ID
+				rule_formatted = map[string]interface{}{`id`: id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+				// if err != nil {
+				// 	panic(err)
+				// }
+				goto StopCheck
+			}
+
 		}
 
 		// not contains
@@ -298,24 +297,24 @@ func alert(log types.AgentLog, db *surrealdb.DB) {
 			if isRegex == true {
 				expression, _ := regexp.Compile(notContain)
 				match = !expression.MatchString(field_value.(string))
-			}else{
+			} else {
 				match = !strings.Contains(field_value.(string), notContain)
 			}
 			if match == true {
-					// send alert to DB and reference the ID
-					rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
-					// err = SendAlert(rule_formatted, entryID, db)
-					// if err != nil {
-					// 	panic(err)
-					// }
-					goto StopCheck
-				}
+				// send alert to DB and reference the ID
+				rule_formatted = map[string]interface{}{`id`: id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+				// err = SendAlert(rule_formatted, entryID, db)
+				// if err != nil {
+				// 	panic(err)
+				// }
+				goto StopCheck
+			}
 		}
 
 		// check if equals
 		for _, equal := range equals {
-			if fmt.Sprintf("%v",equal) == fmt.Sprintf("%v",field_value) {
-				rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+			if fmt.Sprintf("%v", equal) == fmt.Sprintf("%v", field_value) {
+				rule_formatted = map[string]interface{}{`id`: id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
 				// err = SendAlert(rule_formatted, entryID, db)
 				// if err != nil {
 				// 	panic(err)
@@ -326,8 +325,8 @@ func alert(log types.AgentLog, db *surrealdb.DB) {
 
 		// check if not equals
 		for _, notEqual := range notEquals {
-			if fmt.Sprintf("%v", notEqual) != fmt.Sprintf("%v", field_value ){
-				rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+			if fmt.Sprintf("%v", notEqual) != fmt.Sprintf("%v", field_value) {
+				rule_formatted = map[string]interface{}{`id`: id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
 				// err = SendAlert(rule_formatted, entryID, db)
 				// if err != nil {
 				// 	panic(err)
@@ -339,7 +338,7 @@ func alert(log types.AgentLog, db *surrealdb.DB) {
 		// less than
 		for _, l := range lessThan {
 			if l.(int) < field_value.(int) {
-				rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+				rule_formatted = map[string]interface{}{`id`: id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
 				// err = SendAlert(rule_formatted, entryID, db)
 				// if err != nil {
 				// 	panic(err)
@@ -351,7 +350,7 @@ func alert(log types.AgentLog, db *surrealdb.DB) {
 		// greater than
 		for _, g := range greaterThan {
 			if g.(int) > field_value.(int) {
-				rule_formatted = map[string]interface{}{`id`:id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
+				rule_formatted = map[string]interface{}{`id`: id, `level`: level, `description`: description, `groups`: groups, `streams`: streams, `field`: field}
 				// err = SendAlert(rule_formatted, entryID, db)
 				// if err != nil {
 				// 	panic(err)
@@ -360,17 +359,16 @@ func alert(log types.AgentLog, db *surrealdb.DB) {
 			}
 		}
 
-
 		// stop checking
-			StopCheck:
-				go SendAlert(rule_formatted, entryID, db)
-				continue
+	StopCheck:
+		go SendAlert(rule_formatted, entryID, db)
+		continue
 
 	}
 }
 
 // send alert to DB directly and reference the original log id
-func SendAlert(alertData map[string]interface{}, originalLogID *models.RecordID, db *surrealdb.DB){
+func SendAlert(alertData map[string]interface{}, originalLogID *models.RecordID, db *surrealdb.DB) {
 	var alert types.Alert
 	var retries = 0
 	var retry_limit = 20
@@ -378,31 +376,31 @@ func SendAlert(alertData map[string]interface{}, originalLogID *models.RecordID,
 	db.Use(ctx, `alerts`, `alerts`)
 	recordName := crypto.Hash(fmt.Sprintf("%v", alertData))
 	alert = types.Alert{
-		Name: recordName,
-		LogData: alertData,
+		Name:        recordName,
+		LogData:     alertData,
 		OriginalLog: originalLogID,
 	}
 	recordID := models.NewRecordID(`alerts`, recordName)
-	DB:
+DB:
 	_, err := surrealdb.Create[types.Alert](ctx, db, recordID, alert)
 	if err != nil {
 		if strings.Contains(err.Error(), `already exists`) {
 			return
-		}else{
-			if retries < retry_limit{
+		} else {
+			if retries < retry_limit {
 				retries = retries + 1
 				time.Sleep(time.Millisecond * time.Duration(retries))
 				goto DB
 			}
 		}
-        panic(err)
+		panic(err)
 	}
 }
 
 // check if is valid regex
 func IsValidRegex(pattern string) bool {
-    _, err := regexp.Compile(pattern)
-    return err == nil
+	_, err := regexp.Compile(pattern)
+	return err == nil
 }
 
 // find field
@@ -410,8 +408,8 @@ func FindField(log types.AgentLog, field string) (result any) {
 	var logData = log.LogData
 
 	if value, exists := logData[field]; exists {
-        return value
-    }
+		return value
+	}
 	for _, value := range logData {
 		nested, ok := value.(map[string]interface{})
 		if !ok {
@@ -426,10 +424,9 @@ func FindField(log types.AgentLog, field string) (result any) {
 	return nil // nothing
 }
 
-
 func findInMap(m map[string]interface{}, field string) any {
 	if value, exists := m[field]; exists {
-		return  value
+		return value
 	}
 	for _, value := range m {
 		if nestedMap, ok := value.(map[string]interface{}); ok {
@@ -461,14 +458,14 @@ func fetchFromDB(db *surrealdb.DB, rules []types.Rule, fileNames []string) (rule
 		if err != nil {
 			return rules, err
 		}
-		
+
 		for _, entry := range *data {
 			tabledNameRules = append(tabledNameRules, entry.RuleData)
 			tabledRules = append(tabledRules, entry.RuleData)
 		}
 		tableNames[table] = tabledNameRules
 	}
-	if len(tabledRules) < len(rules){
+	if len(tabledRules) < len(rules) {
 		for _, name := range fileNames {
 			name = strings.Replace(name, `.yaml`, ``, 1)
 			name = strings.Replace(name, `.yml`, ``, 1)
@@ -477,10 +474,10 @@ func fetchFromDB(db *surrealdb.DB, rules []types.Rule, fileNames []string) (rule
 				panic(err)
 			}
 			for _, rule := range rules {
-			surrealRule := types.SurrealRule{
-				RuleData: rule,
-			}
-			recordID := models.NewRecordID(name, surrealRule)
+				surrealRule := types.SurrealRule{
+					RuleData: rule,
+				}
+				recordID := models.NewRecordID(name, surrealRule)
 				_, err = surrealdb.Upsert[any](ctx, db, recordID, surrealRule)
 				if err != nil {
 					panic(err)
@@ -488,16 +485,16 @@ func fetchFromDB(db *surrealdb.DB, rules []types.Rule, fileNames []string) (rule
 			}
 		}
 		rulesUpdated = rules
-	}else{
+	} else {
 		var path string
 		if DEBUG != `1` {
 			path = `/app/rules`
-		}else{
+		} else {
 			path = `./rules`
 		}
 		// write new rules to files
-		for fileName, ruleData := range tableNames{
-			filePath := filepath.Join(path, fmt.Sprintf(`%s.yaml`,fileName))
+		for fileName, ruleData := range tableNames {
+			filePath := filepath.Join(path, fmt.Sprintf(`%s.yaml`, fileName))
 			f, _ := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 			formatted := types.RuleFile{
 				Rules: ruleData,
@@ -521,7 +518,7 @@ func updateRules(dbCopy *surrealdb.DB, frame int) {
 	for {
 		time.Sleep(time.Duration(time.Duration(frame)) * time.Second)
 		fmt.Println(`updating rules...`)
-		
+
 		results, err := surrealdb.Query[map[string]interface{}](ctx, dbCopy, `INFO FOR DB`, map[string]any{})
 		if err != nil {
 			panic(err)
@@ -536,7 +533,7 @@ func updateRules(dbCopy *surrealdb.DB, frame int) {
 			if err != nil {
 				panic(err)
 			}
-			
+
 			for _, entry := range *data {
 				tabledNameRules = append(tabledNameRules, entry.RuleData)
 				tabledRules = append(tabledRules, entry.RuleData)
@@ -546,13 +543,13 @@ func updateRules(dbCopy *surrealdb.DB, frame int) {
 		var path string
 		if DEBUG != `1` {
 			path = `/app/rules`
-		}else{
+		} else {
 			path = `./rules`
 		}
 		// write new rules to files if the RULE_WRITE ENV is 1 or if DEBUG is 1
-		if os.Getenv(`RULE_WRITE`) == `1` || DEBUG == `1`{
-			for fileName, ruleData := range tableNames{
-				filePath := filepath.Join(path, fmt.Sprintf(`%s.yaml`,fileName))
+		if os.Getenv(`RULE_WRITE`) == `1` || DEBUG == `1` {
+			for fileName, ruleData := range tableNames {
+				filePath := filepath.Join(path, fmt.Sprintf(`%s.yaml`, fileName))
 				f, _ := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 				formatted := types.RuleFile{
 					Rules: ruleData,
@@ -569,3 +566,4 @@ func updateRules(dbCopy *surrealdb.DB, frame int) {
 		fmt.Println(`updated rules...`)
 	}
 }
+

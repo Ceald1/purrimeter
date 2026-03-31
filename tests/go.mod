@@ -5,6 +5,7 @@ go 1.26.1
 require (
 	github.com/Ceald1/purrimeter/api v0.0.0-20260123074305-5452022a0e02
 	github.com/charmbracelet/log v1.0.0
+	github.com/joho/godotenv v1.5.1
 )
 
 require (
